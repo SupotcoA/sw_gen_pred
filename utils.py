@@ -117,6 +117,7 @@ class Logger:
                  label='Rolling average')
         
         # Customize appearance
+        plt.yscale('log')
         plt.xlabel('Training Steps', fontsize=12)
         plt.ylabel('Loss', fontsize=12)
         plt.title('Training Loss Curve', fontsize=14, pad=15)

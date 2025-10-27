@@ -105,11 +105,11 @@ class MultivariateTimeSeriesDataset(Dataset):
             raise ValueError(f"序列长度 {seq_len} 大于{split}集数据长度 {len(self.data_segment)}")
     
     def __len__(self):
-        return self.n_samples
+        return self.n_samples // self.seq_len
     
     def __getitem__(self, idx):
         # 从指定位置开始获取seq_len长度的序列
-        sequence = self.data_segment[idx:idx + self.seq_len]
+        sequence = self.data_segment[idx*self.seq_len:idx*self.seq_len + self.seq_len]
         return sequence
 
 class RandomMultivariateTimeSeriesDataset(Dataset):
