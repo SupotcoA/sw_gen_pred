@@ -118,6 +118,7 @@ class Logger:
         
         # Customize appearance
         plt.yscale('log')
+        plt.ylim([0,0.08])
         plt.xlabel('Training Steps', fontsize=12)
         plt.ylabel('Loss', fontsize=12)
         plt.title('Training Loss Curve', fontsize=14, pad=15)

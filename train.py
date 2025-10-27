@@ -46,7 +46,7 @@ def train(model,
 
 @torch.no_grad()
 def test_gen(model, test_dataset, logger, num=10):
-    x0s=next(iter(test_dataset))[:4]
+    x0s=next(iter(test_dataset))[:8]
     x0s= x0s.to(model.device)
     x0s = model.preprocess(x0s)
     out = []
