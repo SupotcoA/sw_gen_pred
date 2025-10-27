@@ -215,6 +215,16 @@ def prepare_datasets(data_config):
     
     return train_dataset, val_dataset, test_dataset
 
+class InfiniteDataLoader:
+
+    def __init__(self, *args, **kwargs):
+        self.loader = DataLoader(*args, **kwargs)
+
+    def __iter__(self):
+        while True:
+            for data in self.loader:
+                yield data
+
 def create_data_loaders(data_config):
     """
     创建数据加载器
@@ -229,7 +239,7 @@ def create_data_loaders(data_config):
     
     batch_size = data_config['batch_size']
     
-    train_loader = DataLoader(
+    train_loader = InfiniteDataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
@@ -264,14 +274,19 @@ if __name__ == "__main__":
         split=[0.5, 0.25, 0.25],
         space_weather_data_root="data"
     )
+    S=get_original_data("data") # [N,D]
+    diff = torch.diff(S,dim=0)
+    print(diff.pow(2).mean())
+
+
+    # # 创建数据加载器
+    # train_loader, val_loader, test_loader = create_data_loaders(data_config)
     
-    # 创建数据加载器
-    train_loader, val_loader, test_loader = create_data_loaders(data_config)
-    
-    # 使用方式
-    for x0 in train_loader:
-        x0 = x0.to('cuda')  # 假设模型在GPU上
-        print(x0.dtype)
-        # x0的形状: (batch_size, max_seq_len, dim)
-        print(f"Batch shape: {x0.shape}")
-        break  # 只演示第一个batch
+    # # 使用方式
+    # for x0 in train_loader:
+    #     x0 = x0.to('cuda')  # 假设模型在GPU上
+    #     print(x0.dtype)
+    #     # x0的形状: (batch_size, max_seq_len, dim)
+    #     print(f"Batch shape: {x0.shape}")
+    #     break  # 只演示第一个batch
+
