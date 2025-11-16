@@ -6,58 +6,108 @@ from torch.utils.data import Dataset, DataLoader
 
 def load_mat_file(root):
     data=dict()
-    with h5py.File(os.path.join(root,"ACE_2012.mat"),"r") as f:
-        for key in f.keys():
-            data[key]=np.asarray(f[key]).transpose()
-    with h5py.File(os.path.join(root,"OMNI_2012.mat"),"r") as f:
-        for key in f.keys():
-            data[key]=np.asarray(f[key]).transpose()
+    files:list[str] = os.listdir(root)
+    for fp in files:
+        if fp.endswith("2000s.mat"):
+            with h5py.File(os.path.join(root,fp),"r") as f:
+                for key in f.keys():
+                    data[key]=np.asarray(f[key][0])
+    for fp in files:
+        if fp.endswith("2010s.mat"):
+            with h5py.File(os.path.join(root,fp),"r") as f:
+                for key in f.keys():
+                    data[key]=np.concatenate([data[key],np.asarray(f[key][0])])
     return data
 
+def sigmoid(x):
+    return 1/(1+np.exp(-x))
+
+def sl1p(x):
+    return np.log1p(np.abs(x))*np.sign(x)
+
 def preprocess_data(data:dict):
-    key = 'ACE_Bz_2012'
+    # using 2000-2009 data for normalization
+    #print(data.keys())
+    key = 'ACE_IMF_Bx'
     arr = data[key]
-    arr[arr<-1e3]=0.0
-    arr /= 3.735161
-    data[key] = arr.astype(np.float32)
+    mask = np.isnan(arr)
+    arr = (sigmoid(arr/3.92) - 0.5) * 5
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
 
-    key='ACE_Psw_2012'
+    key = 'ACE_IMF_By'
     arr = data[key]
-    arr /= 3148
-    data[key] = arr.astype(np.float32)
+    mask = np.isnan(arr)
+    arr = (sigmoid(arr/4.3) - 0.5) * 5
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
 
-    key='ACE_Vsw_2012'
+    key = 'ACE_IMF_Bz'
     arr = data[key]
-    arr = (arr - 383)/341
-    data[key] = arr.astype(np.float32)
+    mask = np.isnan(arr)
+    arr = sl1p(arr/3.66) / 0.57
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
 
-    key='OMNI_AE_2012'
+    key = 'ACE_Psw'
     arr = data[key]
-    arr = (arr - 177)/212
-    data[key] = arr.astype(np.float32)
+    arr[arr<1e-3]=np.nan
+    mask = np.isnan(arr)
+    arr = (np.log(arr/5) + 0.1) / 0.67  ##
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
 
-    key='OMNI_ASYMH_2012'
+    key = 'ACE_Vsw'
     arr = data[key]
-    arr = (arr - 19) / 14 #
-    data[key] = arr.astype(np.float32)
-    
-    key='OMNI_PC_2012'
-    arr = data[key]
-    arr[arr>100]=1.0
-    arr = (arr - 1) / 1.465 #
-    data[key] = arr.astype(np.float32)
+    arr[arr<1] = np.nan
+    mask = np.isnan(arr)
+    arr = (np.log(arr/110) - 1.37) / 0.238  ##
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
 
-    key='OMNI_SYMH_2012'
+    key = 'OMNI_AE'
     arr = data[key]
-    arr = (arr + 11) / 18.755921 
-    data[key] = arr.astype(np.float32)
+    arr[arr<0.9] = np.nan
+    mask = np.isnan(arr)
+    arr = (np.log(arr/220) + 0.75) / 1.15  ##
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
+
+    key = 'OMNI_ASYMH'
+    arr = data[key]
+    arr[arr<0.0] = np.nan
+    mask = np.isnan(arr)
+    arr = (np.log1p(arr*2) - 3.55) / 0.63  ##
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
+
+    key = 'OMNI_PC'
+    arr = data[key]
+    arr[arr>100] = np.nan
+    mask = np.isnan(arr)
+    arr = sl1p((arr-1)/1.41) / 0.6  ##
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
+
+    key = 'OMNI_SYMH'
+    arr = data[key]
+    mask = np.isnan(arr)
+    arr = (sl1p((arr+13.2)/22) - 0.047)/ 0.525  ##
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
 
     print("Using data:",*data.keys())
 
-    data_array = [torch.from_numpy(data[key]).float() for key in data.keys()]
-    data_array = torch.cat(data_array,dim=1)
+    keys = data.keys()
+
+    data_array = [torch.from_numpy(data[key][1]).float() for key in keys]
+    data_array = torch.column_stack(data_array)
+
+    mask_array = [torch.from_numpy(data[key][0]).bool() for key in keys]
+    mask_array = torch.column_stack(mask_array)
     print("All data cat shape:", data_array.shape)
-    return data_array
+    print("All mask cat shape:", mask_array.shape)
+    return mask_array, data_array
 
 @torch.no_grad()
 def get_original_data(root):
@@ -66,7 +116,7 @@ def get_original_data(root):
     
 
 class MultivariateTimeSeriesDataset(Dataset):
-    def __init__(self, data, seq_len, split='train', split_ratios=[0.5, 0.25, 0.25]):
+    def __init__(self, data:tuple, seq_len, split='train', split_ratios=[0.5, 0.25, 0.25]):
         """
         多变量时间序列数据集
         
@@ -76,23 +126,25 @@ class MultivariateTimeSeriesDataset(Dataset):
             split: 数据集类型 ('train', 'val', 'test')
             split_ratios: 训练/验证/测试集划分比例
         """
-        self.data = data
         self.seq_len = seq_len
         self.split = split
         
         # 按比例划分数据
-        n_total = len(data)
+        n_total = len(data[1])
         n_train = int(n_total * split_ratios[0])
         n_val = int(n_total * split_ratios[1])
         
         if split == 'train':
-            self.data_segment = data[:n_train]
+            self.mask_segment = data[0][:n_train]
+            self.data_segment = data[1][:n_train]
             print("train data len", self.data_segment.shape[0])
         elif split == 'val':
-            self.data_segment = data[n_train:n_train + n_val]
+            self.mask_segment = data[0][n_train:n_train + n_val]
+            self.data_segment = data[1][n_train:n_train + n_val]
             print("val data len", self.data_segment.shape[0])
         elif split == 'test':
-            self.data_segment = data[n_train + n_val:]
+            self.mask_segment = data[0][n_train + n_val:]
+            self.data_segment = data[1][n_train + n_val:]
             print("test data len", self.data_segment.shape[0])
         else:
             raise ValueError("split must be 'train', 'val' or 'test'")
@@ -109,8 +161,9 @@ class MultivariateTimeSeriesDataset(Dataset):
     
     def __getitem__(self, idx):
         # 从指定位置开始获取seq_len长度的序列
-        sequence = self.data_segment[idx*self.seq_len:idx*self.seq_len + self.seq_len]
-        return sequence
+        mask = self.mask_segment[idx:idx + self.seq_len]
+        sequence = self.data_segment[idx:idx + self.seq_len]
+        return mask, sequence
 
 class RandomMultivariateTimeSeriesDataset(Dataset):
     def __init__(self, data, seq_len, split='train', split_ratios=[0.5, 0.25, 0.25], num_samples=None):
@@ -129,19 +182,21 @@ class RandomMultivariateTimeSeriesDataset(Dataset):
         self.split = split
         
         # 按比例划分数据
-        n_total = len(data)
+        n_total = len(data[1])
         n_train = int(n_total * split_ratios[0])
         n_val = int(n_total * split_ratios[1])
         
         if split == 'train':
-            self.data_segment = data[:n_train]
+            self.mask_segment = data[0][:n_train]
+            self.data_segment = data[1][:n_train]
             print("train data len", self.data_segment.shape[0])
         elif split == 'val':
-            self.data_segment = data[n_train:n_train + n_val]
+            self.mask_segment = data[0][n_train:n_train + n_val]
+            self.data_segment = data[1][n_train:n_train + n_val]
             print("val data len", self.data_segment.shape[0])
         elif split == 'test':
-            self.data_segment = data[n_train + n_val:]
-            print("test data len", self.data_segment.shape[0])
+            self.mask_segment = data[0][n_train + n_val:]
+            self.data_segment = data[1][n_train + n_val:]
         else:
             raise ValueError("split must be 'train', 'val' or 'test'")
         
@@ -163,8 +218,9 @@ class RandomMultivariateTimeSeriesDataset(Dataset):
         start_idx = torch.randint(0, self.valid_start_indices + 1, (1,)).item()
         
         # 获取序列
+        mask = self.mask_segment[start_idx:start_idx + self.seq_len]
         sequence = self.data_segment[start_idx:start_idx + self.seq_len]
-        return sequence
+        return mask, sequence
 
 def prepare_datasets(data_config):
     """
@@ -185,7 +241,7 @@ def prepare_datasets(data_config):
     
     # 从配置中提取参数
     batch_size, max_seq_len, inp_dim = data_config['shape']
-    assert inp_dim == S.shape[-1], f"data dim {inp_dim}; expected shape {S.shape}"
+    assert inp_dim == S[1].shape[-1], f"data dim {inp_dim}; expected shape {S[1].shape}"
     split_ratios = data_config['split']
 
     max_seq_len += 1 # TODO: consider this
@@ -215,16 +271,6 @@ def prepare_datasets(data_config):
     
     return train_dataset, val_dataset, test_dataset
 
-class InfiniteDataLoader:
-
-    def __init__(self, *args, **kwargs):
-        self.loader = DataLoader(*args, **kwargs)
-
-    def __iter__(self):
-        while True:
-            for data in self.loader:
-                yield data
-
 def create_data_loaders(data_config):
     """
     创建数据加载器
@@ -239,7 +285,7 @@ def create_data_loaders(data_config):
     
     batch_size = data_config['batch_size']
     
-    train_loader = InfiniteDataLoader(
+    train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
@@ -265,28 +311,36 @@ def create_data_loaders(data_config):
     
     return train_loader, val_loader, test_loader
 
-# 使用示例
 if __name__ == "__main__":
     # 假设的数据配置
     data_config = dict(
-        shape=(32, 100, 8),  # batch_size=32, max_seq_len=100, inp_dim=10
+        shape=(32, 100, 9),  # batch_size=32, max_seq_len=100, inp_dim=10
         batch_size=32,
         split=[0.5, 0.25, 0.25],
-        space_weather_data_root="data"
+        space_weather_data_root="data/data"
     )
-    S=get_original_data("data") # [N,D]
+    _, S=get_original_data("data/data") # [N,D]
+    print(S.std(dim=0))
+    #[0.9916, 0.9537, 0.9710, 0.7603, 0.9376, 0.9624, 0.9711, 0.9382, 0.9373]
     diff = torch.diff(S,dim=0)
-    print(diff.pow(2).mean())
+    print(diff.pow(2).mean(dim=0))
+    #[0.0283, 0.0330, 0.0635, 0.0133, 0.0024, 0.0074, 0.0091, 0.0039, 0.0010]
+    # diff_Bz_naive = torch.diff(S[:,:2],dim=0)
+    # diff_Bz = torch.diff(S[:,:2].clone().contiguous().view(-1),dim=0)
+    # print(diff.pow(2).mean())
+    # print(diff_Bz_naive.pow(2).mean())
+    # print(diff_Bz.pow(2).mean())
+    # print(diff_Bz.pow(2).mean()*0.25+diff.pow(2).mean()*0.75)
 
 
     # # 创建数据加载器
     # train_loader, val_loader, test_loader = create_data_loaders(data_config)
     
     # # 使用方式
-    # for x0 in train_loader:
+    # for m,x0 in train_loader:
+    #     m = m.to('cuda')
     #     x0 = x0.to('cuda')  # 假设模型在GPU上
     #     print(x0.dtype)
     #     # x0的形状: (batch_size, max_seq_len, dim)
     #     print(f"Batch shape: {x0.shape}")
     #     break  # 只演示第一个batch
-

@@ -19,6 +19,7 @@ class ARModel(nn.Module):
         super().__init__()
         self.device = device if device else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.train_config = train_config
+        self.seg_size = train_config.get('seg_size', 1)
         self.num_fm_per_gd = train_config['num_fm_per_gd']
         self.max_seq_len = train_config['max_seq_len']
         self.build_modules(transformer_config, mlp_config, diffusion_config)
@@ -82,12 +83,26 @@ class ARModel(nn.Module):
         return x
     
     @torch.no_grad()
-    def preprocess(self, x):
-        return x # TODO
+    def preprocess(self, mask, x):
+        B, S, N = x.shape
+        assert S % self.seg_size == 0, "S must be divisible by s"
+
+        x_reshaped = x.reshape(B, S//self.seg_size, self.seg_size, N)
+        x_transformed = x_reshaped.permute(0, 1, 3, 2).reshape(B, S//self.seg_size, N*self.seg_size)
+
+        mask_reshaped = mask.reshape(B, S//self.seg_size, self.seg_size, N)
+        mask_transformed = mask_reshaped.permute(0, 1, 3, 2).reshape(B, S//self.seg_size, N*self.seg_size)
+        return mask_transformed.contiguous() , x_transformed.contiguous()
     
     @torch.no_grad()
-    def decode(self, x):
-        return x # TODO
+    def postprocess(self, x):
+        B, S_new, N_new = x.shape
+        N = N_new // self.seg_size
+        S = S_new * self.seg_size
+        
+        x_reshaped = x.reshape(B, S_new, N, self.seg_size)
+        x_original = x_reshaped.permute(0, 1, 3, 2).reshape(B, S, N)
+        return x_original.contiguous()
 
 
 

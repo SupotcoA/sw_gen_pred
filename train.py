@@ -17,12 +17,13 @@ def train(model,
         return
     
     logger.train_start()
-    for x0 in train_dataset:
+    for mask,x0 in train_dataset:
         model.train()
+        mask, x0 = model.preprocess(mask,x0)
+        mask = mask.to(model.device)
         x0 = x0.to(model.device)
-        x0 = model.preprocess(x0)
         optim.zero_grad()
-        loss = model.train_step(x0)
+        loss = model.train_step(mask, x0)
         loss.backward()
         optim.step()
         
