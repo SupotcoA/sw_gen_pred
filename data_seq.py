@@ -161,8 +161,8 @@ class MultivariateTimeSeriesDataset(Dataset):
     
     def __getitem__(self, idx):
         # 从指定位置开始获取seq_len长度的序列
-        mask = self.mask_segment[idx:idx + self.seq_len]
-        sequence = self.data_segment[idx:idx + self.seq_len]
+        mask = self.mask_segment[idx*self.seq_len:idx*self.seq_len + self.seq_len]
+        sequence = self.data_segment[idx*self.seq_len:idx*self.seq_len + self.seq_len]
         return mask, sequence
 
 class RandomMultivariateTimeSeriesDataset(Dataset):
@@ -228,7 +228,7 @@ def prepare_datasets(data_config):
     
     Args:
         data_config: 数据配置字典
-            shape: (batch_size, max_seq_len, inp_dim)
+            shape: (batch_size, max_seq_len*seg_size, inp_dim)
             batch_size: 批量大小
             split: 训练/验证/测试集划分比例
             space_weather_data_root: 数据路径（如果get_original_data需要）
@@ -244,7 +244,7 @@ def prepare_datasets(data_config):
     assert inp_dim == S[1].shape[-1], f"data dim {inp_dim}; expected shape {S[1].shape}"
     split_ratios = data_config['split']
 
-    max_seq_len += 1 # TODO: consider this
+    max_seq_len += data_config['seg_size'] # TODO: consider this
     
     # 创建数据集
     train_dataset = RandomMultivariateTimeSeriesDataset(
@@ -271,6 +271,16 @@ def prepare_datasets(data_config):
     
     return train_dataset, val_dataset, test_dataset
 
+class InfiniteDataLoader:
+
+    def __init__(self, *args, **kwargs):
+        self.loader = DataLoader(*args, **kwargs)
+
+    def __iter__(self):
+        while True:
+            for data in self.loader:
+                yield data
+
 def create_data_loaders(data_config):
     """
     创建数据加载器
@@ -285,7 +295,7 @@ def create_data_loaders(data_config):
     
     batch_size = data_config['batch_size']
     
-    train_loader = DataLoader(
+    train_loader = InfiniteDataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,

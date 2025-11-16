@@ -30,13 +30,15 @@ class ARModel(nn.Module):
         self.diffuser = FMDiffuser(**diffusion_config)
         self.solver = EulerSolver(**diffusion_config)
     
-    def calc_loss(self, v_pred, v_gt):
-        return self.diffuser.calc_loss(v_pred, v_gt)
+    def calc_loss(self, v_pred, v_gt, mask=None):
+        return self.diffuser.calc_loss(v_pred, v_gt, mask)
     
-    def train_step(self, x0:torch.Tensor): # x0 seq = s + 1 TODO: add SOS
+    def train_step(self, mask:torch.Tensor, x0:torch.Tensor): # x0 seq = s + 1 TODO: add SOS
         b,s_,d=x0.shape
         s=s_-1
-        cond:torch.Tensor = self.get_cond(x0[:,:-1])  # [b, s, c]
+        mask_f32 = mask.clone().to(torch.float32)
+        x0_m = torch.cat([x0,mask_f32],dim=-1)
+        cond:torch.Tensor = self.get_cond(x0_m[:,:-1])  # [b, s, c]
 
         # loss = 0
         # for _  in range(self.num_fm_per_gd):
@@ -51,7 +53,7 @@ class ARModel(nn.Module):
         x0_rep = x0[:,1:].repeat(1,self.num_fm_per_gd,1)
         x, v_gt = self.diffuser.add_noise(x0_rep, t)
         v_pred = self.pred_v(x, t, cond) # [b, s*n, d]
-        loss = self.calc_loss(v_pred, v_gt)
+        loss = self.calc_loss(v_pred, v_gt, mask[:,1:].repeat(1,self.num_fm_per_gd,1))
         return loss
     
     def get_cond(self, x):
@@ -68,19 +70,22 @@ class ARModel(nn.Module):
         return v_pred.view(x.shape).contiguous()
     
     @torch.no_grad()
-    def gen(self, x: torch.Tensor, scope: int):
+    def gen(self, mask:torch.Tensor, x: torch.Tensor, scope: int):
         """Autoregressive generative prediction of the future scope tokens
         based on history data (x).
         - No KV cache currently.
         """
+        mask_f32 = mask.clone().to(torch.float32)
+        x_m = torch.cat([x,mask_f32],dim=-1)
         b, s_h, d=x.shape
         for i in range(scope):
-            x_temp = x[:,-self.max_seq_len:]
+            x_temp = x_m[:,-self.max_seq_len:]
             cond = self.get_cond(x_temp)[:, -1, :]
             ntp = self.solver.generate(self, cond, (b,d)) # [b,d]
             ntp = ntp.view([b,1,d]).contiguous()
-            x = torch.cat((x,ntp), dim=1)
-        return x
+            ntp = torch.cat((ntp,torch.zeros_like(ntp)), dim=-1) # [b,1,d*2]
+            x_m = torch.cat((x,ntp), dim=1)
+        return x_m[:,:,:d]
     
     @torch.no_grad()
     def preprocess(self, mask, x):

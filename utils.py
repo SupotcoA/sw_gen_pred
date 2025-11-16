@@ -74,21 +74,23 @@ class Logger:
             self.time = time.time()
             self.loss_accum = 0
     
-    def test_gen(self, x0s, out:list, idx):
+    def test_gen(self, x0s, out:list, look_back_len):
         x0s = x0s.copy()
-        plt.style.use('seaborn')
         t = np.arange(x0s.shape[1])
-        t_res = np.arange(idx+1, x0s.shape[1])
+        t_res = np.arange(look_back_len+1, x0s.shape[1])
         for b in range(x0s.shape[0]):
-            fig,axs = plt.subplots(ncols=1,nrows=3,sharex=True,figsize=(16, 12),squeeze=True)
+            plot_dim = [0, 2, 3, 5, 8]
+            names = ['BX', 'Bz', 'P', 'AE', 'SYM-H']
+            fig,axs = plt.subplots(ncols=1,nrows=len(plot_dim),
+                                   sharex=True,
+                                   figsize=(14, 4*len(plot_dim)),
+                                   squeeze=True)
 
-            plot_dim = [0, 4, 7]
-
-            for dim, ax in zip(plot_dim,axs):
-                ax.plot(t, x0s[b, :, dim], linewidth=5, color='#2E86C1')
+            for dim,name, ax in zip(plot_dim,names,axs):
+                ax.plot(t, x0s[b, :, dim], linewidth=5, color='#00BFFF')
                 for res in out:
-                    ax.plot(t_res, res[b, idx:, dim], linewidth=5, color="#EB38CA",alpha=1/len(out))
-            
+                    ax.plot(t_res, res[b, look_back_len:, dim], linewidth=5, color="#F80067",alpha=3/len(out))
+                ax.set_ylabel(name, fontsize=16)
             # Add tight layout and save
             plt.tight_layout()
             plt.savefig(os.path.join(self.log_root, f"gen{b}.png"), 

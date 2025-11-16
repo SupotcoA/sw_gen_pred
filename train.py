@@ -47,15 +47,16 @@ def train(model,
 
 @torch.no_grad()
 def test_gen(model, test_dataset, logger, num=10):
-    x0s=next(iter(test_dataset))[:8]
-    x0s= x0s.to(model.device)
-    x0s = model.preprocess(x0s)
+    mask,x0s=next(iter(test_dataset))[:8]
+    mask,x0s_ = model.preprocess(mask,x0s)
+    x0s_= x0s_.to(model.device)
+    mask=mask.to(model.device)
     out = []
     print("generating")
     for _ in range(num):
-        res = model.gen(x0s[:, :-33],scope=32)
-        out.append(res.cpu().numpy())
-    logger.test_gen(x0s.cpu().numpy(), out=out, idx=32)
+        res = model.gen(mask,x0s_[:, 32:],scope=32)
+        out.append(model.postprocess(res.cpu().numpy()))
+    logger.test_gen(x0s.cpu().numpy(), out=out, look_back_len=32*model.seg_size)
     
 
 @torch.no_grad()
@@ -143,9 +144,10 @@ def test(model,
     step = 0
     for x0 in dataset:
         step += 1
+        mask, x0 = model.preprocess(mask,x0)
+        mask = mask.to(model.device)
         x0 = x0.to(model.device)
-        x0 = model.preprocess(x0)
-        loss = model.train_step(x0)
+        loss = model.train_step(mask, x0)
         acc_loss.append(loss.cpu().item())
         if step >= num_test_steps:
             break

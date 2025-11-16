@@ -25,8 +25,8 @@ class FMDiffuser:
         v_gt = n - x0
         return (1 - t_) * x0 + t_ * n, v_gt
     
-    def calc_loss(self, v_pred, v_gt, t=None):
-        return (v_pred - v_gt).pow(2).mean()
+    def calc_loss(self, v_pred, v_gt, mask, t=None):
+        return (v_pred - v_gt)[~mask].pow(2).mean()
     
     
 
