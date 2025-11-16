@@ -142,7 +142,7 @@ def test(model,
     model.eval()
     acc_loss = []
     step = 0
-    for x0 in dataset:
+    for mask,x0 in dataset:
         step += 1
         mask, x0 = model.preprocess(mask,x0)
         mask = mask.to(model.device)
