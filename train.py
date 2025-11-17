@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from utils import Logger, check_ae
+from data_seq import postprocess_data
 
 
 def train(model,
@@ -47,16 +48,17 @@ def train(model,
 
 @torch.no_grad()
 def test_gen(model, test_dataset, logger, num=10):
-    mask,x0s=next(iter(test_dataset))[:8]
-    mask,x0s_ = model.preprocess(mask,x0s)
+    mask,x0s=next(iter(test_dataset))
+    mask,x0s=mask[:8],x0s[:8]
+    mask_,x0s_ = model.preprocess(mask,x0s)
     x0s_= x0s_.to(model.device)
-    mask=mask.to(model.device)
+    mask_=mask_.to(model.device)
     out = []
     print("generating")
     for _ in range(num):
-        res = model.gen(mask[:, :33],x0s_[:, :33],scope=32)
-        out.append(model.postprocess(res.cpu()).numpy())
-    logger.test_gen(x0s.cpu().numpy(), out=out, look_back_len=33*model.seg_size)
+        res = model.gen(mask_[:, :33],x0s_[:, :33],scope=32)
+        out.append(postprocess_data(model.postprocess(res.cpu()).numpy())) # TODO: handle nan
+    logger.test_gen(postprocess_data(x0s.cpu().numpy(), mask.cpu().numpy()), out=out, look_back_len=33*model.seg_size)
     
 
 @torch.no_grad()

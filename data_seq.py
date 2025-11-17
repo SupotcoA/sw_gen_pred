@@ -49,22 +49,6 @@ def preprocess_data(data:dict):
     arr[mask] = 0.0
     data[key] = (mask, arr.astype(np.float32))
 
-    key = 'ACE_Psw'
-    arr = data[key]
-    arr[arr<1e-3]=np.nan
-    mask = np.isnan(arr)
-    arr = (np.log(arr/5) + 0.1) / 0.67  ##
-    arr[mask] = 0.0
-    data[key] = (mask, arr.astype(np.float32))
-
-    key = 'ACE_Vsw'
-    arr = data[key]
-    arr[arr<1] = np.nan
-    mask = np.isnan(arr)
-    arr = (np.log(arr/110) - 1.37) / 0.238  ##
-    arr[mask] = 0.0
-    data[key] = (mask, arr.astype(np.float32))
-
     key = 'OMNI_AE'
     arr = data[key]
     arr[arr<0.9] = np.nan
@@ -96,10 +80,25 @@ def preprocess_data(data:dict):
     arr[mask] = 0.0
     data[key] = (mask, arr.astype(np.float32))
 
-    print("Using data:",*data.keys())
+    key = 'ACE_Psw'
+    arr = data[key]
+    arr[arr<1e-3]=np.nan
+    mask = np.isnan(arr)
+    arr = (np.log(arr/5) + 0.1) / 0.67  ##
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
+
+    key = 'ACE_Vsw'
+    arr = data[key]
+    arr[arr<1] = np.nan
+    mask = np.isnan(arr)
+    arr = (np.log(arr/110) - 1.37) / 0.238  ##
+    arr[mask] = 0.0
+    data[key] = (mask, arr.astype(np.float32))
 
     keys = data.keys()
-
+    print("Using data:",*keys)
+    
     data_array = [torch.from_numpy(data[key][1]).float() for key in keys]
     data_array = torch.column_stack(data_array)
 
@@ -108,6 +107,50 @@ def preprocess_data(data:dict):
     print("All data cat shape:", data_array.shape)
     print("All mask cat shape:", mask_array.shape)
     return mask_array, data_array
+
+def isigmoid(x):
+    return -np.log((1/np.clip(x,2e-3,1-2e-3))-1)
+
+def isl1p(x):
+    # inverse np.log1p(np.abs(x))*np.sign(x)
+    return np.expm1(np.abs(x)) * np.sign(x)
+
+def postprocess_data(data:np.ndarray, mask=None):
+    data = data.copy()
+    mask = mask.astype(bool) if mask is not None else None
+    # data shape: [B,S,D]
+    # D=9
+    key_idx = 0
+    # ACE_IMF_Bx
+    data[...,key_idx] = isigmoid(data[...,key_idx]/5+0.5)*3.92
+    key_idx += 1
+    # ACE_IMF_By
+    data[...,key_idx] = isigmoid(data[...,key_idx]/5+0.5)*4.3
+    key_idx += 1
+    # ACE_IMF_Bz
+    data[...,key_idx] = isl1p(data[...,key_idx]*0.57)*3.66
+    key_idx += 1
+    # OMNI_AE
+    data[...,key_idx] = np.exp((data[...,key_idx]*1.15)-0.75)*220
+    key_idx += 1
+    # OMNI_ASYMH
+    data[...,key_idx] = (np.expm1((data[...,key_idx]*0.63)+3.55))/2
+    key_idx += 1
+    # OMNI_PC
+    data[...,key_idx] = isl1p(data[...,key_idx]*0.6)*1.41 + 1
+    key_idx += 1
+    # OMNI_SYMH
+    data[...,key_idx] = (isl1p((data[...,key_idx]*0.525)+0.047)*22) - 13.2
+    key_idx += 1
+    # ACE_Psw
+    data[...,key_idx] = np.exp((data[...,key_idx]*0.67)-0.1)*5
+    key_idx += 1
+    # ACE_Vsw
+    data[...,key_idx] = np.exp((data[...,key_idx]*0.238)+1.37)*110
+    key_idx += 1
+    if mask is not None:
+        data[mask] = np.nan
+    return data
 
 @torch.no_grad()
 def get_original_data(root):
