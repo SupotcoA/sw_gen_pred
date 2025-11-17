@@ -107,7 +107,7 @@ class Logger:
     def train_end(self):
         self.log_text(f"Skipped steps: {self.skip_step}","train_log")
         # Create figure with improved style
-        plt.style.use('seaborn')
+        #plt.style.use('seaborn')
         fig = plt.figure(figsize=(10, 6))
         
         # Plot learning curve with better styling
@@ -129,7 +129,7 @@ class Logger:
         
         # Customize appearance
         plt.yscale('log')
-        plt.ylim([0,0.08])
+        plt.ylim(top=0.2)
         plt.xlabel('Training Steps', fontsize=12)
         plt.ylabel('Loss', fontsize=12)
         plt.title('Training Loss Curve', fontsize=14, pad=15)
