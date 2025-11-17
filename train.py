@@ -159,4 +159,6 @@ def test(model,
            + f"loss:{acc_loss.mean():.4f}+-{acc_loss.std():.4f}\n" 
     print(info)
     logger.log_text(info, "train_log", newline=True)
+    if is_eval:
+        logger.eval_step(acc_loss.mean())
     return acc_loss.mean()

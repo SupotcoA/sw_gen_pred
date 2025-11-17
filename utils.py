@@ -32,6 +32,7 @@ class Logger:
         self.time = 0
         self.loss_accum = 0
         self.train_loss = []
+        self.eval_loss_history = []
         self.train_memory = []
         
     def train_start(self):
@@ -74,6 +75,11 @@ class Logger:
             self.time = time.time()
             self.loss_accum = 0
     
+    @torch.no_grad()
+    def eval_step(self, loss):
+        self.eval_loss_history.append((self.step, loss))
+    
+    @torch.no_grad()
     def test_gen(self, x0s, out:list, look_back_len):
         x0s = x0s.copy()
         t = np.arange(x0s.shape[1])
@@ -105,7 +111,10 @@ class Logger:
         fig = plt.figure(figsize=(10, 6))
         
         # Plot learning curve with better styling
-        plt.plot(self.train_loss, linewidth=2, color='#2E86C1', alpha=0.8)
+        plt.plot(self.train_loss, linewidth=2, color="#2FC8FF", alpha=0.8)
+        x=[step for step, loss in self.eval_loss_history]
+        y=[loss for step, loss in self.eval_loss_history]
+        plt.plot(x,y, 'o-', color="#1DF176", label='Eval Loss')
         
         # Add rolling average for smoother visualization
         window_size = min(1000, len(self.train_loss))
@@ -115,7 +124,7 @@ class Logger:
         plt.plot(range(window_size-1, len(self.train_loss)), 
                  rolling_mean, 
                  linewidth=2.5, 
-                 color='#E74C3C', 
+                 color="#F42A14", 
                  label='Rolling average')
         
         # Customize appearance
