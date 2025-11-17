@@ -54,9 +54,9 @@ def test_gen(model, test_dataset, logger, num=10):
     out = []
     print("generating")
     for _ in range(num):
-        res = model.gen(mask[:, 32:],x0s_[:, 32:],scope=32)
+        res = model.gen(mask[:, :33],x0s_[:, :33],scope=32)
         out.append(model.postprocess(res.cpu()).numpy())
-    logger.test_gen(x0s.cpu().numpy(), out=out, look_back_len=32*model.seg_size)
+    logger.test_gen(x0s.cpu().numpy(), out=out, look_back_len=33*model.seg_size)
     
 
 @torch.no_grad()

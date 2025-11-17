@@ -77,7 +77,7 @@ class Logger:
     def test_gen(self, x0s, out:list, look_back_len):
         x0s = x0s.copy()
         t = np.arange(x0s.shape[1])
-        t_res = np.arange(look_back_len+1, x0s.shape[1])
+        t_res = np.arange(look_back_len, x0s.shape[1])
         for b in range(x0s.shape[0]):
             plot_dim = [0, 2, 3, 5, 8]
             names = ['BX', 'Bz', 'P', 'AE', 'SYM-H']
