@@ -84,7 +84,7 @@ class ARModel(nn.Module):
             ntp = self.solver.generate(self, cond, (b,d)) # [b,d]
             ntp = ntp.view([b,1,d]).contiguous()
             ntp = torch.cat((ntp,torch.zeros_like(ntp)), dim=-1) # [b,1,d*2]
-            x_m = torch.cat((x,ntp), dim=1)
+            x_m = torch.cat((x_m,ntp), dim=1)
         return x_m[:,:,:d]
     
     @torch.no_grad()

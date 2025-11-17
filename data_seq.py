@@ -330,11 +330,12 @@ if __name__ == "__main__":
         space_weather_data_root="data/data"
     )
     _, S=get_original_data("data/data") # [N,D]
-    print(S.std(dim=0))
-    #[0.9916, 0.9537, 0.9710, 0.7603, 0.9376, 0.9624, 0.9711, 0.9382, 0.9373]
-    diff = torch.diff(S,dim=0)
-    print(diff.pow(2).mean(dim=0))
-    #[0.0283, 0.0330, 0.0635, 0.0133, 0.0024, 0.0074, 0.0091, 0.0039, 0.0010]
+    print(np.isnan(S.numpy()).sum())
+    # print(S.std(dim=0))
+    # [0.9916, 0.9537, 0.9710, 0.7603, 0.9376, 0.9624, 0.9711, 0.9382, 0.9373]
+    # diff = torch.diff(S,dim=0)
+    # print(diff.pow(2).mean(dim=0))
+    # [0.0283, 0.0330, 0.0635, 0.0133, 0.0024, 0.0074, 0.0091, 0.0039, 0.0010]
     # diff_Bz_naive = torch.diff(S[:,:2],dim=0)
     # diff_Bz = torch.diff(S[:,:2].clone().contiguous().view(-1),dim=0)
     # print(diff.pow(2).mean())
