@@ -372,8 +372,26 @@ if __name__ == "__main__":
         split=[0.5, 0.25, 0.25],
         space_weather_data_root="data/data"
     )
-    _, S=get_original_data("data/data") # [N,D]
-    print(np.isnan(S.numpy()).sum())
+    @torch.no_grad()
+    def preprocess(mask, x, seg_size=4):
+        S, N = x.shape
+        S=S//seg_size*seg_size
+        x=x[:S]
+        mask=mask[:S]
+
+        x_reshaped = x.reshape(S//seg_size, seg_size, N)
+        x_transformed = x_reshaped.permute(0, 1, 3, 2).reshape(S//seg_size, N*seg_size)
+
+        mask_reshaped = mask.reshape(S//seg_size, seg_size, N)
+        mask_transformed = mask_reshaped.permute(0, 1, 3, 2).reshape(S//seg_size, N*seg_size)
+        return mask_transformed.contiguous() , x_transformed.contiguous()
+    m, x=get_original_data("data/data") # [N,D]
+    # find the expected loss when always copy the last value (not token)
+    seg_size=4
+    m, x = preprocess(m,x,seg_size=seg_size) # [S//s,D*s]
+    pred = x.clone()
+
+
     # print(S.std(dim=0))
     # [0.9916, 0.9537, 0.9710, 0.7603, 0.9376, 0.9624, 0.9711, 0.9382, 0.9373]
     # diff = torch.diff(S,dim=0)

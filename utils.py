@@ -86,7 +86,7 @@ class Logger:
         t_res = np.arange(look_back_len, x0s.shape[1])
         for b in range(x0s.shape[0]):
             plot_dim = [0, 2, 3, 6, 7]
-            names = ['BX', 'Bz', 'AE', 'SYM-H', 'P']
+            names = ['Bx', 'Bz', 'AE', 'SYM-H', 'P']
             fig,axs = plt.subplots(ncols=1,nrows=len(plot_dim),
                                    sharex=True,
                                    figsize=(14, 4*len(plot_dim)),
@@ -111,10 +111,10 @@ class Logger:
         fig = plt.figure(figsize=(10, 6))
         
         # Plot learning curve with better styling
-        plt.plot(self.train_loss, linewidth=2, color="#2FC8FF", alpha=0.8)
+        plt.plot(self.train_loss, linewidth=1, color="#4FD6FF", alpha=0.6)
         x=[step for step, loss in self.eval_loss_history]
         y=[loss for step, loss in self.eval_loss_history]
-        plt.plot(x,y, 'o-', color="#1DF176", label='Eval Loss')
+        plt.plot(x,y, 'o-', color="#23AD00", label='Eval Loss',linewidth=3)
         
         # Add rolling average for smoother visualization
         window_size = min(1000, len(self.train_loss))
@@ -123,7 +123,7 @@ class Logger:
                                   mode='valid')
         plt.plot(range(window_size-1, len(self.train_loss)), 
                  rolling_mean, 
-                 linewidth=2.5, 
+                 linewidth=3, 
                  color="#F42A14", 
                  label='Rolling average')
         
@@ -133,7 +133,7 @@ class Logger:
         plt.xlabel('Training Steps', fontsize=12)
         plt.ylabel('Loss', fontsize=12)
         plt.title('Training Loss Curve', fontsize=14, pad=15)
-        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.grid(True, linestyle='--', alpha=0.7,which='both')
         plt.legend()
         
         # Add tight layout and save
