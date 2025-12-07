@@ -70,11 +70,11 @@ def diff_loss(model, dataset, logger, num_test_steps=250):
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
     
     for i, (ds,c) in enumerate(zip(diff_step,colors)):
-        plt.errorbar(np.arange(len(mean_loss[i])), mean_loss[i], color=c+"A0", ecolor=c+"50", yerr=std_loss[i], fmt='-o', capsize=5, label=f'{ds} steps')
+        plt.errorbar(np.arange(len(mean_loss[i])), mean_loss[i], color=c+"80", ecolor=c+"30", yerr=std_loss[i], fmt='-o', capsize=5, label=f'{ds} steps')
         window_size = 15
-        if len(mean_loss) >= window_size:
+        if len(mean_loss[i]) >= window_size:
             # pad the sequence to avoid losing points at the edges
-            padded_mean = np.pad(mean_loss, (window_size//2, window_size//2), mode='edge')
+            padded_mean = np.pad(mean_loss[i], (window_size//2, window_size//2), mode='edge')
             smoothed_mean = np.convolve(padded_mean, np.ones(window_size)/window_size, mode='valid')
             plt.plot(np.arange(len(smoothed_mean)), smoothed_mean, color=c, label='Smoothed', linewidth=4)
     #plt.hlines(y=0.044439464807510376, xmin=0, xmax=len(mean_loss[0])-1, colors='gray', linestyles='dashed')
