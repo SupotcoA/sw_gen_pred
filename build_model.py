@@ -73,7 +73,7 @@ def build_model(logger,
 
     if train_config['pretrained']:
         sd = torch.load(train_config['pretrained'], map_location=torch.device('cpu'))
-        model.net.load_state_dict(sd, strict=True)
+        model.load_state_dict(sd, strict=True)
     if torch.cuda.is_available():
         model.cuda()
         print("running on cuda")
