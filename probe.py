@@ -30,7 +30,7 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
     
     plt.errorbar(np.arange(len(mean_loss)), mean_loss, yerr=std_loss, fmt='-o', ecolor='#00BFFF80', capsize=5)
     # also plot a smoothed version
-    window_size = 13
+    window_size = 15
     if len(mean_loss) >= window_size:
         # pad the sequence to avoid losing points at the edges
         padded_mean = np.pad(mean_loss, (window_size//2, window_size//2), mode='edge')
@@ -69,9 +69,9 @@ def diff_loss(model, dataset, logger, num_test_steps=250):
     #plt default color cycle
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
     
-    for i, (ds,c) in enumerate(diff_step,colors):
+    for i, (ds,c) in enumerate(zip(diff_step,colors)):
         plt.errorbar(np.arange(len(mean_loss[i])), mean_loss[i], color=c+"A0", ecolor=c+"50", yerr=std_loss[i], fmt='-o', capsize=5, label=f'{ds} steps')
-        window_size = 13
+        window_size = 15
         if len(mean_loss) >= window_size:
             # pad the sequence to avoid losing points at the edges
             padded_mean = np.pad(mean_loss, (window_size//2, window_size//2), mode='edge')
