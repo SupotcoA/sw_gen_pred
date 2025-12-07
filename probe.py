@@ -3,7 +3,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-torch.no_grad()
+@torch.no_grad()
 def pipeline(model, logger, dataset):
     model.eval()
     loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
