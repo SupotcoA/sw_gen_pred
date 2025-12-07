@@ -104,7 +104,7 @@ class ARModel(nn.Module):
             for diff_step in scope:              
                 ntp = self.solver.generate(self, cond, (b*s,d),step=diff_step) # [b*s,d]
                 temp = (ntp-tar).pow(2)
-                temp = self.postprocess(temp)[:,:,3:7]
+                temp = self.postprocess_2d(temp)[:,:,3:7]
                 temp[tar_mask_]=0
                 loss = temp.sum(dim=(0,2),keepdim=False)/count # [s*4,]
                 ls.append(loss.view(-1,4).mean(dim=-1).cpu().numpy())
@@ -118,7 +118,7 @@ class ARModel(nn.Module):
             # tar_mask_ = self.postprocess(tar_mask)[:,:,3:7].bool()
             # count=tar_mask_.sum(dim=(0,2),keepdim=False).clamp(min=1)
             # x_temp = x_m
-            # cond = self.get_cond(x_temp) #[b,s,d]
+            # cond = self.get_cond(x_temp) #[b,s,c]
             # for diff_step in scope:              
             #     ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
             #     temp = (ntp-tar).pow(2)
@@ -149,6 +149,16 @@ class ARModel(nn.Module):
         x_reshaped = x.reshape(B, S_new, N, self.seg_size)
         x_original = x_reshaped.permute(0, 1, 3, 2).reshape(B, S, N)
         return x_original.contiguous()
+    
+    @torch.no_grad()
+    def postprocess_2d(self, x):
+        S_new, N_new = x.shape
+        N = N_new // self.seg_size
+        S = S_new * self.seg_size
+        x_reshaped = x.reshape(S_new, N, self.seg_size)
+        x_original = x_reshaped.permute(0, 2, 1).reshape(S, N)
+        return x_original.contiguous()
+
 
 
 
