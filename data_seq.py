@@ -380,10 +380,10 @@ if __name__ == "__main__":
         mask=mask[:S]
 
         x_reshaped = x.reshape(S//seg_size, seg_size, N)
-        x_transformed = x_reshaped.permute(0, 1, 3, 2).reshape(S//seg_size, N*seg_size)
+        x_transformed = x_reshaped.permute(0, 2, 1).reshape(S//seg_size, N*seg_size)
 
         mask_reshaped = mask.reshape(S//seg_size, seg_size, N)
-        mask_transformed = mask_reshaped.permute(0, 1, 3, 2).reshape(S//seg_size, N*seg_size)
+        mask_transformed = mask_reshaped.permute(0, 2, 1).reshape(S//seg_size, N*seg_size)
         return mask_transformed.contiguous() , x_transformed.contiguous()
     m, x=get_original_data("data/data") # [N,D]
     # find the expected loss when always copy the last value (not token)

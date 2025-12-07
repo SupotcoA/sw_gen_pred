@@ -25,7 +25,16 @@ class FMDiffuser:
         v_gt = n - x0
         return (1 - t_) * x0 + t_ * n, v_gt
     
-    def calc_loss(self, v_pred, v_gt, mask, t=None):
+    def calc_loss(self, v_pred, v_gt, mask, t=None, per_token=False):
+        if per_token:
+            # keep the seq dim
+            b, s, d = v_pred.shape
+            temp = (v_pred - v_gt).pow(2).contiguous().view(b,per_token,s//per_token,d)
+            temp_mask = mask.contiguous().view(b,per_token,s//per_token,d)
+            temp[mask] = 0
+            count = (~mask).sum(dim=(0,1,3), keepdim=False)
+            temp = temp.sum(dim=(0,1,3), keepdim=False) / count.clamp(min=1)
+            return temp
         return (v_pred - v_gt)[~mask].pow(2).mean()
     
     
@@ -46,12 +55,12 @@ class EulerSolver:
           return xt + v * dt  # dt < 0
     
     @torch.no_grad()
-    def generate(self, model, cond, shape,):
-        b, d = shape
+    def generate(self, model, cond, shape,step=None):
+        b = shape[:-1]
         xt = torch.randn(shape).to(model.device)
-
-        for i in reversed(range(1, self.num_steps)):
-            t = torch.full((b,), self.t[i], device=model.device)
+        step = step if step is not None else self.num_steps
+        for i in reversed(range(1, step)):
+            t = torch.full(b, self.t[i], device=model.device)
             v_pred = model.pred_v(xt, t, cond)
             dt = self.t[i-1] - self.t[i]
             xt = self.step(xt, v_pred, dt)

@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from utils import Logger, check_ae
 from data_seq import postprocess_data
-
+from probe import pipeline
 
 def train(model,
           optim,
@@ -14,9 +14,13 @@ def train(model,
           logger: Logger):
     if train_config['train_steps']<=0:
         model.eval()
-        final_eval_generation(model, train_config, logger, verbose=train_config['train_steps']==0)
+        pipeline(model, logger, val_dataset)
+        #final_eval_generation(model, train_config, logger, verbose=train_config['train_steps']==0)
         return
     
+    assert train_config['train_steps']%train_config['eval_every_n_steps']==0
+    
+    current_best_val_loss = float('inf')
     logger.train_start()
     for mask,x0 in train_dataset:
         model.train()
@@ -33,17 +37,27 @@ def train(model,
             lr_scheduler.step()
         if logger.step % train_config['eval_every_n_steps'] == 0:
             model.eval()
-            test(model, logger, val_dataset, num_test_steps=1000, is_eval=True)
+            val_loss=test(model, logger, val_dataset, num_test_steps=1000, is_eval=True)
+            if val_loss < current_best_val_loss:
+                current_best_val_loss = val_loss
+                if train_config['save']:
+                    logger.log_net(model.cpu(),f"mar_best_{logger.model_name}")
+                if model.device.type == 'cuda':
+                    model.cuda()
         if logger.step == train_config['train_steps']:
+            # load the best checkpoint for test set evaluation
+            if train_config['save']:
+                sd = torch.load(train_config['pretrained'], map_location=model.device)
+                model.load_state_dict(sd, strict=True)
             model.eval()
+            test(model, logger, test_dataset, num_test_steps=1000)
             test_gen(model,test_dataset,logger,num=10)
+            pipeline(model, logger, val_dataset)
             logger.train_end()
             break
     
-    loss1=test(model, logger, test_dataset, num_test_steps=1000)
-    
-    if train_config['save']:
-        logger.log_net(model.cpu(),f"mar_{logger.step}_{logger.model_name}")
+    # if train_config['save']:
+    #     logger.log_net(model.cpu(),f"mar_{logger.step}_{logger.model_name}")
     return
 
 @torch.no_grad()
@@ -159,7 +173,7 @@ def test(model,
     acc_loss=np.asarray(acc_loss)
     mode="Eval" if is_eval else "Test"
     info = f"{mode}\n" \
-           + f"loss:{acc_loss.mean():.4f}+-{acc_loss.std():.4f}\n" 
+           + f"loss:{acc_loss.mean():.4f}+-{acc_loss.std()/np.sqrt(acc_loss.shape[0]):.4f}\n" 
     print(info)
     logger.log_text(info, "train_log", newline=True)
     if is_eval:

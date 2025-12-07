@@ -30,10 +30,10 @@ class ARModel(nn.Module):
         self.diffuser = FMDiffuser(**diffusion_config)
         self.solver = EulerSolver(**diffusion_config)
     
-    def calc_loss(self, v_pred, v_gt, mask=None):
-        return self.diffuser.calc_loss(v_pred, v_gt, mask)
+    def calc_loss(self, v_pred, v_gt, mask=None, per_token=False):
+        return self.diffuser.calc_loss(v_pred, v_gt, mask, per_token=per_token)
     
-    def train_step(self, mask:torch.Tensor, x0:torch.Tensor): # x0 seq = s + 1 TODO: add SOS
+    def train_step(self, mask:torch.Tensor, x0:torch.Tensor, per_token_loss=False): # x0 seq = s + 1 TODO: add SOS
         b,s_,d=x0.shape
         s=s_-1
         mask_f32 = mask.clone().to(torch.float32)
@@ -53,7 +53,7 @@ class ARModel(nn.Module):
         x0_rep = x0[:,1:].repeat(1,self.num_fm_per_gd,1)
         x, v_gt = self.diffuser.add_noise(x0_rep, t)
         v_pred = self.pred_v(x, t, cond) # [b, s*n, d]
-        loss = self.calc_loss(v_pred, v_gt, mask[:,1:].repeat(1,self.num_fm_per_gd,1))
+        loss = self.calc_loss(v_pred, v_gt, mask[:,1:].repeat(1,self.num_fm_per_gd,1),per_token=self.num_fm_per_gd if per_token_loss else False)
         return loss
     
     def get_cond(self, x):
@@ -78,14 +78,30 @@ class ARModel(nn.Module):
         mask_f32 = mask.clone().to(torch.float32)
         x_m = torch.cat([x,mask_f32],dim=-1)
         b, s_h, d=x.shape
-        for i in range(scope):
+
+        if isinstance(scope, int):
+            for i in range(scope):
+                x_temp = x_m[:,-self.max_seq_len:]
+                cond = self.get_cond(x_temp)[:, -1, :]
+                ntp = self.solver.generate(self, cond, (b,d)) # [b,d]
+                ntp = ntp.view([b,1,d]).contiguous()
+                ntp = torch.cat((ntp,torch.zeros_like(ntp)), dim=-1) # [b,1,d*2]
+                x_m = torch.cat((x_m,ntp), dim=1)
+            return x_m[:,:,:d]
+        elif hasattr(scope,"__iter__"):
+            s=s_h-1
+            ls=[]
+            tar,tar_mask=x[:,1:], mask[:,1:]
             x_temp = x_m[:,-self.max_seq_len:]
-            cond = self.get_cond(x_temp)[:, -1, :]
-            ntp = self.solver.generate(self, cond, (b,d)) # [b,d]
-            ntp = ntp.view([b,1,d]).contiguous()
-            ntp = torch.cat((ntp,torch.zeros_like(ntp)), dim=-1) # [b,1,d*2]
-            x_m = torch.cat((x_m,ntp), dim=1)
-        return x_m[:,:,:d]
+            cond = self.get_cond(x_temp) #[b,s,d]
+            for diff_step in scope:              
+                ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
+                temp = (ntp-tar).pow(2)
+                temp[tar_mask]=0
+                count=tar_mask.sum(dim=(0,2),keepdim=False).clamp(min=1)
+                loss = temp.sum(dim=(0,2),keepdim=False)/count # [s,]
+                ls.append(loss.cpu().numpy())
+            return np.array(ls)
     
     @torch.no_grad()
     def preprocess(self, mask, x):
