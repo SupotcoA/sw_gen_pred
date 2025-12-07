@@ -121,7 +121,7 @@ class Logger:
         rolling_mean = np.convolve(self.train_loss, 
                                   np.ones(window_size)/window_size, 
                                   mode='valid')
-        plt.plot(range(window_size-1, len(self.train_loss)), 
+        plt.plot(range(window_size//2-1, window_size//2-1+rolling_mean.shape[0]), 
                  rolling_mean, 
                  linewidth=3, 
                  color="#F42A14", 

@@ -15,6 +15,7 @@ def train(model,
     if train_config['train_steps']<=0:
         model.eval()
         pipeline(model, logger, val_dataset)
+        test_gen(model,val_dataset,logger,num=2)
         #final_eval_generation(model, train_config, logger, verbose=train_config['train_steps']==0)
         return
     
