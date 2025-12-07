@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from torch import nn
 from transformer_modules import TransformerDecoder
 from mlp_modules import SimpleMLPAdaLN
