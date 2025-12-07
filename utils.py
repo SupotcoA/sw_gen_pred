@@ -95,7 +95,7 @@ class Logger:
             for dim,name, ax in zip(plot_dim,names,axs):
                 ax.plot(t, x0s[b, :, dim], linewidth=5, color='#00BFFF')
                 for res in out:
-                    ax.plot(t_res, res[b, look_back_len:, dim], linewidth=5, color="#F80067",alpha=3/len(out))
+                    ax.plot(t_res, res[b, look_back_len:, dim], linewidth=5, color="#F80067",alpha=min(3/len(out),0.99))
                 ax.set_ylabel(name, fontsize=16)
             # Add tight layout and save
             plt.tight_layout()
