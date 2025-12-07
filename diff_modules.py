@@ -69,10 +69,10 @@ class EulerSolver:
         b = shape[:-1]
         xt = torch.randn(shape).to(model.device)
         step = step if step is not None else self.num_steps
-        self.t_ = torch.linspace(0, 1, step) if step is not None else self.t
+        self.T = torch.linspace(0, 1, step)
         for i in reversed(range(1, step)):
-            t = torch.full(b, self.t_[i], device=model.device)
+            t = torch.full(b, self.T[i], device=model.device)
             v_pred = model.pred_v(xt, t, cond)
-            dt = self.t_[i-1] - self.t_[i]
+            dt = self.T[i-1] - self.T[i]
             xt = self.step(xt, v_pred, dt)
         return xt  # [b, d]

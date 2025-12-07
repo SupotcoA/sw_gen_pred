@@ -76,7 +76,7 @@ def diff_loss(model, dataset, logger, num_test_steps=250):
             # pad the sequence to avoid losing points at the edges
             padded_mean = np.pad(mean_loss[i], (window_size//2, window_size//2), mode='edge')
             smoothed_mean = np.convolve(padded_mean, np.ones(window_size)/window_size, mode='valid')
-            plt.plot(np.arange(len(smoothed_mean)), smoothed_mean, color=c, label='Smoothed', linewidth=4)
+            plt.plot(np.arange(len(smoothed_mean)), smoothed_mean, color=c, linewidth=3)
     #plt.hlines(y=0.044439464807510376, xmin=0, xmax=len(mean_loss[0])-1, colors='gray', linestyles='dashed')
     plt.yscale('log')
     plt.xlabel('Sequence Length')

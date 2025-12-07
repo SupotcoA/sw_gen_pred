@@ -386,10 +386,8 @@ if __name__ == "__main__":
         mask_transformed = mask_reshaped.permute(0, 2, 1).reshape(S//seg_size, N*seg_size)
         return mask_transformed.contiguous() , x_transformed.contiguous()
     m, x=get_original_data("data/data") # [N,D]
-    # find the expected loss when always copy the last value (not token)
-    seg_size=4
-    m, x = preprocess(m,x,seg_size=seg_size) # [S//s,D*s]
-    pred = x.clone()
+    x[m]=np.nan
+    print(np.nanstd(x,axis=0))
 
 
     # print(S.std(dim=0))
