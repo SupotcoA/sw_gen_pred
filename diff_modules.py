@@ -35,9 +35,10 @@ class FMDiffuser:
             temp[temp_mask] = 0
             count = (~temp_mask).sum(dim=(0,1,3), keepdim=False)
             temp = temp.sum(dim=(0,1,3), keepdim=False) / count.clamp(min=1)
-            return temp
+            return temp.view(-1,4).mean(dim=-1)
         return (v_pred - v_gt)[~mask].pow(2).mean()
-    
+
+@torch.no_grad()
 def postprocess(x):
     B, S_new, N_new = x.shape
     N = N_new // 4
@@ -46,8 +47,7 @@ def postprocess(x):
     x_reshaped = x.reshape(B, S_new, N, 4)
     x_original = x_reshaped.permute(0, 1, 3, 2).reshape(B, S, N)
     return x_original.contiguous()
-    
-    
+
 
 class EulerSolver:
     """SD3 used Euler solver"""
@@ -69,9 +69,10 @@ class EulerSolver:
         b = shape[:-1]
         xt = torch.randn(shape).to(model.device)
         step = step if step is not None else self.num_steps
+        self.t_ = torch.linspace(0, 1, step) if step is not None else self.t
         for i in reversed(range(1, step)):
-            t = torch.full(b, self.t[i], device=model.device)
+            t = torch.full(b, self.t_[i], device=model.device)
             v_pred = model.pred_v(xt, t, cond)
-            dt = self.t[i-1] - self.t[i]
+            dt = self.t_[i-1] - self.t_[i]
             xt = self.step(xt, v_pred, dt)
         return xt  # [b, d]
