@@ -61,7 +61,7 @@ def diff_loss(model, dataset, logger, num_test_steps=250):
     plt.figure(figsize=(10, 6))
     for i, ds in enumerate(diff_step):
         plt.errorbar(np.arange(len(mean_loss[i])), mean_loss[i], yerr=std_loss[i], fmt='-o', capsize=5, label=f'{ds} steps')
-    plt.hlines(y=0.044439464807510376, xmin=0, xmax=len(mean_loss[0])-1, colors='gray', linestyles='dashed')
+    #plt.hlines(y=0.044439464807510376, xmin=0, xmax=len(mean_loss[0])-1, colors='gray', linestyles='dashed')
     plt.yscale('log')
     plt.xlabel('Sequence Length')
     plt.ylabel('MSE')

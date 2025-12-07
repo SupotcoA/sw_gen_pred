@@ -76,11 +76,12 @@ class ARModel(nn.Module):
         based on history data (x).
         - No KV cache currently.
         """
-        mask_f32 = mask.clone().to(torch.float32)
-        x_m = torch.cat([x,mask_f32],dim=-1)
-        b, s_h, d=x.shape
+        
 
         if isinstance(scope, int):
+            mask_f32 = mask.clone().to(torch.float32)
+            x_m = torch.cat([x,mask_f32],dim=-1)
+            b, s_h, d=x.shape
             for i in range(scope):
                 x_temp = x_m[:,-self.max_seq_len:]
                 cond = self.get_cond(x_temp)[:, -1, :]
@@ -90,16 +91,21 @@ class ARModel(nn.Module):
                 x_m = torch.cat((x_m,ntp), dim=1)
             return x_m[:,:,:d]
         elif hasattr(scope,"__iter__"):
+            mask_f32 = mask[:,:-1].clone().to(torch.float32)
+            x_m = torch.cat([x[:,:-1],mask_f32],dim=-1)
+            b, s_h, d=x.shape
             s=s_h-1
             ls=[]
             tar,tar_mask=x[:,1:], mask[:,1:]
+            tar_mask_ = self.postprocess(tar_mask)[:,:,3:7].bool()
+            count=tar_mask_.sum(dim=(0,2),keepdim=False).clamp(min=1)
             x_temp = x_m[:,-self.max_seq_len:]
             cond = self.get_cond(x_temp) #[b,s,d]
             for diff_step in scope:              
                 ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
                 temp = (ntp-tar).pow(2)
-                temp[tar_mask]=0
-                count=tar_mask.sum(dim=(0,2),keepdim=False).clamp(min=1)
+                temp = self.postprocess(temp)[:,:,3:7]
+                temp[tar_mask_]=0
                 loss = temp.sum(dim=(0,2),keepdim=False)/count # [s,]
                 ls.append(loss.cpu().numpy())
             return np.array(ls)

@@ -27,15 +27,25 @@ class FMDiffuser:
     
     def calc_loss(self, v_pred, v_gt, mask, t=None, per_token=False):
         if per_token:
-            # keep the seq dim
-            b, s, d = v_pred.shape
-            temp = (v_pred - v_gt).pow(2).contiguous().view(b,per_token,s//per_token,d)
+            temp = postprocess((v_pred - v_gt).pow(2))[:,:,3:7]
+            mask = postprocess(mask)[:,:,3:7].bool()
+            b, s, d = temp.shape
+            temp = temp.contiguous().view(b,per_token,s//per_token,d)
             temp_mask = mask.contiguous().view(b,per_token,s//per_token,d)
             temp[temp_mask] = 0
             count = (~temp_mask).sum(dim=(0,1,3), keepdim=False)
             temp = temp.sum(dim=(0,1,3), keepdim=False) / count.clamp(min=1)
             return temp
         return (v_pred - v_gt)[~mask].pow(2).mean()
+    
+def postprocess(x):
+    B, S_new, N_new = x.shape
+    N = N_new // 4
+    S = S_new * 4
+    
+    x_reshaped = x.reshape(B, S_new, N, 4)
+    x_original = x_reshaped.permute(0, 1, 3, 2).reshape(B, S, N)
+    return x_original.contiguous()
     
     
 
