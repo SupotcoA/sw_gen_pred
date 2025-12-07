@@ -94,7 +94,7 @@ class ARModel(nn.Module):
             b, s_h, d=x.shape
             s=s_h-1
             ls=[]
-            tar,tar_mask=x[:,1:], mask[:,1:]
+            tar,tar_mask=x[:,1:].contiguous(), mask[:,1:].contiguous()
             tar=tar.view(-1,d).contiguous()
             tar_mask_ = self.postprocess(tar_mask)[:,:,3:7].bool() #[b,s*4,d//4]
             count=tar_mask_.sum(dim=(0,2),keepdim=False).clamp(min=1)
