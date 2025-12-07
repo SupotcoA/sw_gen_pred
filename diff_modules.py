@@ -31,8 +31,8 @@ class FMDiffuser:
             b, s, d = v_pred.shape
             temp = (v_pred - v_gt).pow(2).contiguous().view(b,per_token,s//per_token,d)
             temp_mask = mask.contiguous().view(b,per_token,s//per_token,d)
-            temp[mask] = 0
-            count = (~mask).sum(dim=(0,1,3), keepdim=False)
+            temp[temp_mask] = 0
+            count = (~temp_mask).sum(dim=(0,1,3), keepdim=False)
             temp = temp.sum(dim=(0,1,3), keepdim=False) / count.clamp(min=1)
             return temp
         return (v_pred - v_gt)[~mask].pow(2).mean()
