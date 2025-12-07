@@ -43,7 +43,7 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
 
 def diff_loss(model, dataset, logger, num_test_steps=250):
     acc_loss = []
-    diff_step = [8,16,32]
+    diff_step = [48,64,96]
     step = 0
     for mask,x0 in dataset:
         step += 1
