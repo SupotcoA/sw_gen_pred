@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 def pipeline(model, logger, dataset):
     model.eval()
     #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
-    diff_loss(model, dataset, logger, num_test_steps=200)
+    loss_vs_time(model, dataset, logger, num_test_steps=200)
 
 def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
     # how the loss would decrease as we increase the sequence length
@@ -102,6 +102,61 @@ def diff_loss(model, dataset, logger, num_test_steps=250):
                 dpi=300,
                 bbox_inches='tight')
     plt.close()
+
+def loss_vs_time(model, dataset, logger, num_test_steps=250):
+    ts=torch.linspace(0,1,10)
+    acc_loss = []
+    acc_loss_x0=[]
+    step = 0
+    for mask,x0 in dataset:
+        step += 1
+        mask, x0 = model.preprocess(mask,x0)
+        mask = mask.to(model.device)
+        x0 = x0.to(model.device)
+        b,s_,d=x0.shape
+        s=s_-1
+        mask_f32 = mask.clone().to(torch.float32)
+        x0_m = torch.cat([x0,mask_f32],dim=-1)
+        cond:torch.Tensor = model.get_cond(x0_m[:,:-1])  # [b, s, c]
+        ls=[]
+        lx=[]
+        for i in range(len(ts)):
+            t = torch.full((b,s), ts[i], device=model.device)
+            x, v_gt = model.diffuser.add_noise(x0[:,1:], t)
+            v_pred = model.pred_v(x, t, cond) # [b, s, d]
+            x0_pred = x - v_pred * t.view(b, s, 1)
+            loss = model.calc_loss(v_pred, v_gt)
+            ls.append(loss.cpu().item())
+            loss_x0 = (x0_pred - x0[:,1:])[~mask[:,1:].bool()].pow(2).mean().cpu().item()
+            lx.append(loss_x0)
+        acc_loss.append(ls)
+        acc_loss_x0.append(lx)
+        if step >= num_test_steps:
+            break
+    acc_loss=np.asarray(acc_loss) # [num_test_steps, num_time_points]
+    mean_loss = acc_loss.mean(axis=0) # [num_time_points]
+    std_loss = acc_loss.std(axis=0) / np.sqrt(acc_loss.shape[0]) # [num_time_points]
+    acc_loss_x0=np.asarray(acc_loss_x0) # [num_test_steps, num_time_points]
+    mean_loss_x0 = acc_loss_x0.mean(axis=0) # [num_time_points]
+    std_loss_x0 = acc_loss_x0.std(axis=0) / np.sqrt(acc_loss_x0.shape[0]) # [num_time_points]
+
+    # visualize & save at logger.log_root
+    _,ax=plt.subplots(figsize=(10, 6))
+    ax.errorbar(ts.numpy(), mean_loss, yerr=std_loss, fmt='-o',color="#00BFFF", ecolor='#00BFFF40', capsize=5)
+    ax.set_xlabel('Diffusion Time t')
+    ax.set_ylabel('loss')
+    ax.grid(True, linestyle='--', alpha=0.7,which='both')
+    ax2=ax.twinx()
+
+    ax2.errorbar(ts.numpy(), mean_loss_x0, yerr=std_loss_x0, fmt='-o', color='#F80067', ecolor='#F8006740', capsize=5)
+    ax2.set_ylabel('x0 loss', color='#F80067')
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(logger.log_root, f"loss_vs_t.png"), 
+                dpi=100, 
+                bbox_inches='tight')
+    plt.close()
+    
 
 
 def diff_loss_debug(model, dataset, logger, num_test_steps=250):

@@ -65,21 +65,41 @@ class EulerSolver:
         return xt + v * dt  # dt < 0
     
     @torch.no_grad()
-    def generate(self, model, cond, shape,step=None):
+    def generate(self, model, cond, shape, step=None):
         b = shape[:-1]
         xt = torch.randn(shape).to(model.device)
         step = step if step is not None else self.num_steps
-        if step >= 1:
-            self.T = torch.linspace(0, 1, step)
-            for i in reversed(range(1, step)):
-                t = torch.full(b, self.T[i], device=model.device)
-                v_pred = model.pred_v(xt, t, cond)
-                dt = self.T[i-1] - self.T[i]
-                xt = self.step(xt, v_pred, dt)
-            return xt  # [b, d]
-        elif step==1:
-            t = torch.full(b, 1.0, device=model.device)
+
+        self.T = torch.linspace(0, 1, step+1)
+        for i in reversed(range(1, step+1)):
+            t = torch.full(b, self.T[i], device=model.device)
             v_pred = model.pred_v(xt, t, cond)
-            dt = -1.0
+            dt = self.T[i-1] - self.T[i]
             xt = self.step(xt, v_pred, dt)
-            return xt
+        return xt  # [b, d]
+    
+    @torch.no_grad()
+    def generate_test(self, x0, shape, step=None):
+        xt = torch.randn_like(x0)
+        step = step if step is not None else self.num_steps
+
+        self.T = torch.linspace(0, 1, step+1)
+        for i in reversed(range(1, step+1)):
+            t = torch.full(shape, self.T[i])
+            v_pred = (xt - x0 + torch.randn_like(x0)*(0.1+t*0.1))/t
+            dt = self.T[i-1] - self.T[i]
+            xt = self.step(xt, v_pred, dt)
+        return xt  # [b, d]
+    
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    solver=EulerSolver(64)
+    x0=torch.randn(256,256,10)
+    steps=[1,2,4,8,16,32,64]
+    ls=[]
+    for step in steps:
+        xt=solver.generate_test(x0,x0.shape,step=step)
+        loss=((xt - x0)**2).mean().item()
+        ls.append(loss)
+    plt.plot(steps,ls)
+    plt.show()

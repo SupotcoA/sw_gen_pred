@@ -71,10 +71,10 @@ def test_gen(model, test_dataset, logger, num=10):
     mask_,x0s_ = model.preprocess(mask,x0s)
     x0s_= x0s_.to(model.device)
     mask_=mask_.to(model.device)
-    out = []
     print("generating")
     steps=[2,8,32]
     for step in steps:
+        out=[]
         for _ in range(num):
             res = model.gen(mask_[:, :33],x0s_[:, :33],scope=32,step=step)
             out.append(postprocess_data(model.postprocess(res.cpu()).numpy())) # TODO: handle nan
