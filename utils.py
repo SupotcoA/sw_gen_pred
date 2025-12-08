@@ -184,6 +184,9 @@ class Logger:
     
     def log_net(self,net,name):
         torch.save(net.state_dict(),os.path.join(self.log_root,f"{name}.pth"))
+    
+    def log_arr(self,arr:np.ndarray,name):
+        np.save(os.path.join(self.log_root,f"{name}.npy"),arr)
 
 @torch.no_grad()
 def check_ae(model,x0, batch_size=9):

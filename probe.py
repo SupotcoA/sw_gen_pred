@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 @torch.no_grad()
 def pipeline(model, logger, dataset):
     model.eval()
-    loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
+    #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
     diff_loss(model, dataset, logger, num_test_steps=200)
 
 def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
@@ -50,7 +50,7 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
 
 def diff_loss(model, dataset, logger, num_test_steps=250):
     acc_loss = []
-    diff_step = [8,16,32,64,96]
+    diff_step = [2,4,8,16]#,32,64,96]
     step = 0
     for mask,x0 in dataset:
         step += 1
@@ -90,6 +90,19 @@ def diff_loss(model, dataset, logger, num_test_steps=250):
                 bbox_inches='tight')
     plt.close()
 
+    plt.figure(figsize=(10, 6))
+    # loss vs step, averaged over sequence length
+    plt.plot(diff_step, mean_loss.mean(axis=1), '-o', linewidth=3)
+    plt.yscale('log')
+    plt.xlabel('Diffusion Steps')
+    plt.ylabel('MSE')
+    plt.grid(True, linestyle='--', alpha=0.7,which='both')
+    plt.tight_layout()
+    plt.savefig(os.path.join(logger.log_root, "mse_vs_diff_steps.png"),
+                dpi=300,
+                bbox_inches='tight')
+    plt.close()
+
 
 def diff_loss_debug(model, dataset, logger, num_test_steps=250):
     acc_loss = []
@@ -126,3 +139,6 @@ def diff_loss_debug(model, dataset, logger, num_test_steps=250):
                     dpi=100, 
                     bbox_inches='tight')
         plt.close()
+
+def storm_pred(model, dataset, logger, num_test_steps=250):
+    pass
