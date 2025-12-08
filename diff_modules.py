@@ -54,11 +54,11 @@ class EulerSolver:
     def __init__(self, num_steps):
         super().__init__()
         self.num_steps = num_steps
-        self.t = torch.linspace(0, 1, num_steps)
+    #     self.t = torch.linspace(0, 1, num_steps)
 
-    def get_t(self, i):
-        # i: step index
-        return self.t[i]
+    # def get_t(self, i):
+    #     # i: step index
+    #     return self.t[i]
     
     @torch.no_grad()
     def step(self, xt, v, dt: float):

@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 @torch.no_grad()
 def pipeline(model, logger, dataset):
     model.eval()
-    loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
-    diff_loss(model, dataset, logger, num_test_steps=200)
+    #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
+    diff_loss_debug(model, dataset, logger, num_test_steps=200)
 
 def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
     # how the loss would decrease as we increase the sequence length
@@ -89,3 +89,40 @@ def diff_loss(model, dataset, logger, num_test_steps=250):
                 dpi=300, 
                 bbox_inches='tight')
     plt.close()
+
+
+def diff_loss_debug(model, dataset, logger, num_test_steps=250):
+    acc_loss = []
+    diff_step = [8,16,32,64,96]
+    step = 0
+    for mask,x0 in dataset:
+        step += 1
+        mask, x0 = model.preprocess(mask[:4],x0[:4])
+        mask = mask.to(model.device)
+        x0 = x0.to(model.device)
+        ntp = model.gen(mask, x0, scope=diff_step) #[num_diff_steps,b,s,d]
+        acc_loss=ntp #[]
+        break
+    acc_loss=np.asarray(acc_loss) #[num_diff_steps,b,s,d]
+    
+    x0s = model.postprocess(torch.from_numpy(acc_loss[-1])).numpy() #[b,s*4,9]
+    tar = model.postprocess(x0[:,1:]).cpu().numpy() #[b,s*4,9]
+    t = np.arange(x0s.shape[1])
+    for b in range(x0s.shape[0]):
+        plot_dim = [0, 2, 3, 6, 7]
+        names = ['Bx', 'Bz', 'AE', 'SYM-H', 'P']
+        fig,axs = plt.subplots(ncols=1,nrows=len(plot_dim),
+                                sharex=True,
+                                figsize=(14, 4*len(plot_dim)),
+                                squeeze=True)
+
+        for dim,name, ax in zip(plot_dim,names,axs):
+            ax.plot(t, tar[b, :, dim], linewidth=5, color='#00BFFF')
+            ax.plot(t, x0s[b, :, dim], linewidth=5, color="#F80067")
+            ax.set_ylabel(name, fontsize=16)
+        # Add tight layout and save
+        plt.tight_layout()
+        plt.savefig(os.path.join(logger.log_root, f"single_step_gen{b}.png"), 
+                    dpi=100, 
+                    bbox_inches='tight')
+        plt.close()
