@@ -305,6 +305,13 @@ def prepare_datasets(data_config):
         split='val',
         split_ratios=split_ratios
     )
+
+    val_dataset.randomized_dataset = RandomMultivariateTimeSeriesDataset(
+        data=S,
+        seq_len=max_seq_len,
+        split='val',
+        split_ratios=split_ratios
+    )
     
     test_dataset = MultivariateTimeSeriesDataset(
         data=S,
@@ -354,6 +361,13 @@ def create_data_loaders(data_config):
         num_workers=0,
         #pin_memory=True if torch.cuda.is_available() else False
     )
+
+    val_loader.randomized_loader = InfiniteDataLoader(
+        val_dataset.randomized_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=4,
+    )
     
     test_loader = DataLoader(
         test_dataset,
@@ -362,6 +376,8 @@ def create_data_loaders(data_config):
         num_workers=0,
         #pin_memory=True if torch.cuda.is_available() else False
     )
+
+    
     
     return train_loader, val_loader, test_loader
 

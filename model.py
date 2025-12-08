@@ -100,7 +100,6 @@ class ARModel(nn.Module):
             cond = self.get_cond(x_m).contiguous() #[b,s,c]
             for diff_step in scope:              
                 ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
-                ls.append(ntp.cpu().numpy())
                 temp = (ntp-tar).pow(2)
                 temp = self.postprocess(temp)[:,:,3:7]
                 temp[tar_mask_]=0
