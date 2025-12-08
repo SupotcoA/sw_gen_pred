@@ -15,7 +15,7 @@ def train(model,
     if train_config['train_steps']<=0:
         model.eval()
         pipeline(model, logger, train_dataset)
-        #test_gen(model,val_dataset,logger,num=2)
+        test_gen(model,val_dataset,logger,num=10)
         #final_eval_generation(model, train_config, logger, verbose=train_config['train_steps']==0)
         return
     
@@ -66,7 +66,7 @@ def test_gen(model, test_dataset, logger, num=10):
     mask,x0s=next(iter(test_dataset))
     #mask,x0s=mask[:8],x0s[:8]
     # randomly select 8 samples
-    idx  = torch.from_numpy(np.random.choice(mask.shape[0], size=8, replace=False)).int()
+    idx  = torch.from_numpy(np.random.choice(mask.shape[0], size=2, replace=False)).int()
     mask, x0s = mask[idx], x0s[idx]
     mask_,x0s_ = model.preprocess(mask,x0s)
     x0s_= x0s_.to(model.device)

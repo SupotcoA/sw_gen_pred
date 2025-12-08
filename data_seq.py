@@ -116,6 +116,7 @@ def isl1p(x):
     return np.expm1(np.abs(x)) * np.sign(x)
 
 def postprocess_data(data:np.ndarray, mask=None):
+    return data
     data = data.copy()
     mask = mask.astype(bool) if mask is not None else None
     # data shape: [B,S,D]

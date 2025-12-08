@@ -94,39 +94,19 @@ class ARModel(nn.Module):
             b, s_h, d=x.shape
             s=s_h-1
             ls=[]
-            tar,tar_mask=x[:,1:].contiguous(), mask[:,1:].contiguous()
-            tar=tar.view(-1,d).contiguous()
-            tar_mask_ = self.postprocess(tar_mask)[:,:,3:7].bool() #[b,s*4,d//4]
+            tar,tar_mask=x[:,1:], mask[:,1:]
+            tar_mask_ = self.postprocess(tar_mask)[:,:,3:7].bool() # [b,s*4,4]
             count=tar_mask_.sum(dim=(0,2),keepdim=False).clamp(min=1)
             x_temp = x_m
-            cond = self.get_cond(x_temp) #[b, s, c]
-            cond=cond.view(-1,cond.shape[-1]).contiguous() #[b*s,c]
+            cond = self.get_cond(x_temp).contiguous() #[b,s,c]
             for diff_step in scope:              
-                ntp = self.solver.generate(self, cond, (b*s,d),step=diff_step) # [b*s,d]
+                ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
                 temp = (ntp-tar).pow(2)
-                temp = self.postprocess_2d(temp)[:,:,3:7]
+                temp = self.postprocess(temp)[:,:,3:7]
                 temp[tar_mask_]=0
                 loss = temp.sum(dim=(0,2),keepdim=False)/count # [s*4,]
                 ls.append(loss.view(-1,4).mean(dim=-1).cpu().numpy())
             return np.array(ls)
-            # mask_f32 = mask[:,:-1].clone().to(torch.float32)
-            # x_m = torch.cat([x[:,:-1],mask_f32],dim=-1)
-            # b, s_h, d=x.shape
-            # s=s_h-1
-            # ls=[]
-            # tar,tar_mask=x[:,1:], mask[:,1:]
-            # tar_mask_ = self.postprocess(tar_mask)[:,:,3:7].bool()
-            # count=tar_mask_.sum(dim=(0,2),keepdim=False).clamp(min=1)
-            # x_temp = x_m
-            # cond = self.get_cond(x_temp) #[b,s,c]
-            # for diff_step in scope:              
-            #     ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
-            #     temp = (ntp-tar).pow(2)
-            #     temp = self.postprocess(temp)[:,:,3:7]
-            #     temp[tar_mask_]=0
-            #     loss = temp.sum(dim=(0,2),keepdim=False)/count # [s*4,]
-            #     ls.append(loss.view(-1,4).mean(dim=-1).cpu().numpy())
-            # return np.array(ls)
     
     @torch.no_grad()
     def preprocess(self, mask, x):
