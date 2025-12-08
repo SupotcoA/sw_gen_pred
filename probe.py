@@ -57,7 +57,7 @@ def diff_loss(model, dataset, logger, num_test_steps=250):
         mask, x0 = model.preprocess(mask,x0)
         mask = mask.to(model.device)
         x0 = x0.to(model.device)
-        loss = model.gen(mask, x0, scope=diff_step) #[num_diff_steps,s]
+        loss = model.gen(mask, x0, step=diff_step) #[num_diff_steps,s]
         acc_loss.append(loss)
         if step >= num_test_steps:
             break
@@ -113,7 +113,7 @@ def diff_loss_debug(model, dataset, logger, num_test_steps=250):
         mask, x0 = model.preprocess(mask[:4],x0[:4])
         mask = mask.to(model.device)
         x0 = x0.to(model.device)
-        ntp = model.gen(mask, x0, scope=diff_step) #[num_diff_steps,b,s,d]
+        ntp = model.gen(mask, x0, step=diff_step) #[num_diff_steps,b,s,d]
         acc_loss=ntp #[]
         break
     acc_loss=np.asarray(acc_loss) #[num_diff_steps,b,s,d]

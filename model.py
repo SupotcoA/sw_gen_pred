@@ -71,7 +71,7 @@ class ARModel(nn.Module):
         return v_pred.view(x.shape).contiguous()
     
     @torch.no_grad()
-    def gen(self, mask:torch.Tensor, x: torch.Tensor, scope: int):
+    def gen(self, mask:torch.Tensor, x: torch.Tensor, scope: int=None, step=None):
         """Autoregressive generative prediction of the future scope tokens
         based on history data (x).
         - No KV cache currently.
@@ -83,12 +83,12 @@ class ARModel(nn.Module):
             for i in range(scope):
                 x_temp = x_m[:,-self.max_seq_len:]
                 cond = self.get_cond(x_temp)[:, -1, :]
-                ntp = self.solver.generate(self, cond, (b,d)) # [b,d]
+                ntp = self.solver.generate(self, cond, (b,d), step=step) # [b,d]
                 ntp = ntp.view([b,1,d]).contiguous()
                 ntp = torch.cat((ntp,torch.zeros_like(ntp)), dim=-1) # [b,1,d*2]
                 x_m = torch.cat((x_m,ntp), dim=1)
             return x_m[:,:,:d]
-        elif hasattr(scope,"__iter__"):
+        elif scope is None and hasattr(step,"__iter__"):
             mask_f32 = mask[:,:-1].clone().to(torch.float32)
             x_m = torch.cat([x[:,:-1],mask_f32],dim=-1)
             b, s_h, d=x.shape
@@ -98,7 +98,7 @@ class ARModel(nn.Module):
             tar_mask_ = self.postprocess(tar_mask)[:,:,:].bool() # [b,s*4,4]
             count=(~tar_mask_).sum(dim=(0,2),keepdim=False).clamp(min=1)
             cond = self.get_cond(x_m).contiguous() #[b,s,c]
-            for diff_step in scope:              
+            for diff_step in step:              
                 ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
                 temp = (ntp-tar).pow(2)
                 temp = self.postprocess(temp)[:,:,:]

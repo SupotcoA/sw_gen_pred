@@ -14,8 +14,8 @@ def train(model,
           logger: Logger):
     if train_config['train_steps']<=0:
         model.eval()
-        pipeline(model, logger, val_dataset.randomized_loader)
-        #test_gen(model,val_dataset,logger,num=10)
+        #pipeline(model, logger, val_dataset.randomized_loader)
+        test_gen(model,val_dataset,logger,num=10)
         #final_eval_generation(model, train_config, logger, verbose=train_config['train_steps']==0)
         return
     
@@ -66,17 +66,19 @@ def test_gen(model, test_dataset, logger, num=10):
     mask,x0s=next(iter(test_dataset))
     #mask,x0s=mask[:8],x0s[:8]
     # randomly select 8 samples
-    idx  = torch.from_numpy(np.random.choice(mask.shape[0], size=2, replace=False)).int()
+    idx  = torch.from_numpy(np.random.choice(mask.shape[0], size=4, replace=False)).int()
     mask, x0s = mask[idx], x0s[idx]
     mask_,x0s_ = model.preprocess(mask,x0s)
     x0s_= x0s_.to(model.device)
     mask_=mask_.to(model.device)
     out = []
     print("generating")
-    for _ in range(num):
-        res = model.gen(mask_[:, :33],x0s_[:, :33],scope=32)
-        out.append(postprocess_data(model.postprocess(res.cpu()).numpy())) # TODO: handle nan
-    logger.test_gen(postprocess_data(x0s.cpu().numpy(), mask.cpu().numpy()), out=out, look_back_len=33*model.seg_size)
+    steps=[2,8,32]
+    for step in steps:
+        for _ in range(num):
+            res = model.gen(mask_[:, :33],x0s_[:, :33],scope=32,step=step)
+            out.append(postprocess_data(model.postprocess(res.cpu()).numpy())) # TODO: handle nan
+        logger.test_gen(postprocess_data(x0s.cpu().numpy(), mask.cpu().numpy()), out=out, look_back_len=33*model.seg_size,step=step)
     
 
 @torch.no_grad()

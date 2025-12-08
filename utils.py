@@ -80,7 +80,7 @@ class Logger:
         self.eval_loss_history.append((self.step, loss))
     
     @torch.no_grad()
-    def test_gen(self, x0s, out:list, look_back_len):
+    def test_gen(self, x0s, out:list, look_back_len,step=None):
         x0s = x0s.copy()
         t = np.arange(x0s.shape[1])
         t_res = np.arange(look_back_len, x0s.shape[1])
@@ -99,7 +99,7 @@ class Logger:
                 ax.set_ylabel(name, fontsize=16)
             # Add tight layout and save
             plt.tight_layout()
-            plt.savefig(os.path.join(self.log_root, f"gen{b}.png"), 
+            plt.savefig(os.path.join(self.log_root, f"gen{b}_s{step}.png"), 
                         dpi=100, 
                         bbox_inches='tight')
             plt.close()
