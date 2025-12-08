@@ -34,7 +34,7 @@ class FMDiffuser:
             temp_mask = mask.contiguous().view(b,per_token,s//per_token,d)
             temp[temp_mask] = 0
             count = (~temp_mask).sum(dim=(0,1,3), keepdim=False)
-            temp = temp.sum(dim=(0,1,3), keepdim=False) / count.clamp(min=1)
+            temp = temp.sum(dim=(0,1,3), keepdim=False) / count
             return temp.view(-1,4).mean(dim=-1)
         return (v_pred - v_gt)[~mask].pow(2).mean()
 
@@ -84,9 +84,10 @@ class EulerSolver:
         step = step if step is not None else self.num_steps
 
         self.T = torch.linspace(0, 1, step+1)
+        bias=torch.randn_like(x0)
         for i in reversed(range(1, step+1)):
             t = torch.full(shape, self.T[i])
-            v_pred = (xt - x0 + torch.randn_like(x0)*(0.1+t*0.1))/t
+            v_pred = (xt - x0 + bias*(0.07**0.5*t))/t
             dt = self.T[i-1] - self.T[i]
             xt = self.step(xt, v_pred, dt)
         return xt  # [b, d]
