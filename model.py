@@ -95,17 +95,17 @@ class ARModel(nn.Module):
             s=s_h-1
             ls=[]
             tar,tar_mask=x[:,1:], mask[:,1:]
-            tar_mask_ = tar_mask#self.postprocess(tar_mask)[:,:,3:7].bool() # [b,s*4,4]
-            count=tar_mask_.sum(dim=(0,2),keepdim=False).clamp(min=1)
+            tar_mask_ = self.postprocess(tar_mask)[:,:,3:7].bool() # [b,s*4,4]
+            count=(~tar_mask_).sum(dim=(0,2),keepdim=False).clamp(min=1)
             cond = self.get_cond(x_m).contiguous() #[b,s,c]
             for diff_step in scope:              
                 ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
                 ls.append(ntp.cpu().numpy())
-                #temp = (ntp-tar).pow(2)
-                #temp = self.postprocess(temp)[:,:,3:7]
-                # temp[tar_mask_]=0
-                # loss = temp.sum(dim=(0,2),keepdim=False)/count # [s*4,]
-                # ls.append(loss.view(-1,4).mean(dim=-1).cpu().numpy())
+                temp = (ntp-tar).pow(2)
+                temp = self.postprocess(temp)[:,:,3:7]
+                temp[tar_mask_]=0
+                loss = temp.sum(dim=(0,2),keepdim=False)/count # [s*4,]
+                ls.append(loss.view(-1,4).mean(dim=-1).cpu().numpy())
             return np.array(ls)
     
     @torch.no_grad()

@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 @torch.no_grad()
 def pipeline(model, logger, dataset):
     model.eval()
-    #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
-    diff_loss_debug(model, dataset, logger, num_test_steps=200)
+    loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
+    diff_loss(model, dataset, logger, num_test_steps=200)
 
 def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
     # how the loss would decrease as we increase the sequence length
