@@ -125,7 +125,7 @@ def loss_vs_time(model, dataset, logger, num_test_steps=250):
             x, v_gt = model.diffuser.add_noise(x0[:,1:], t)
             v_pred = model.pred_v(x, t, cond) # [b, s, d]
             x0_pred = x - v_pred * t.view(b, s, 1)
-            loss = model.calc_loss(v_pred, v_gt)
+            loss = model.calc_loss(v_pred, v_gt, mask[:,1:], per_token=False)
             ls.append(loss.cpu().item())
             loss_x0 = (x0_pred - x0[:,1:])[~mask[:,1:].bool()].pow(2).mean().cpu().item()
             lx.append(loss_x0)
