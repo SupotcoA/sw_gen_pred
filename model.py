@@ -100,7 +100,7 @@ class ARModel(nn.Module):
             count=(~tar_mask_).sum(dim=(0,2),keepdim=False)
             cond = self.get_cond(x_m).contiguous() #[b,s,c]
             for diff_step in step:              
-                ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
+                ntp = self.solver.generate(self, cond, (b,s,d), mask=mask[:,1:], step=diff_step) # [b,s,d]
                 temp = (ntp-tar).pow(2)
                 temp = self.postprocess(temp)[:,:,:]
                 temp[tar_mask_]=0
@@ -114,10 +114,10 @@ class ARModel(nn.Module):
             s=s_h-1
             ls=[]
             tar,tar_mask=x[:,1:], mask[:,1:]
-            tar_mask_ = self.postprocess(tar_mask)[:,:,:].bool() # [b,s*4,4]
+            tar_mask_ = self.postprocess(tar_mask)[:,:,:].bool()
             cond = self.get_cond(x_m).contiguous() #[b,s,c]
             for diff_step in step:              
-                ntp = self.solver.generate(self, cond, (b,s,d),step=diff_step) # [b,s,d]
+                ntp = self.solver.generate(self, cond, (b,s,d),mask=mask[:,1:],step=diff_step) # [b,s,d]
                 temp = (ntp-tar).pow(2)
                 temp = self.postprocess(temp)[:,:,:]
                 ls.append(temp[tar_mask_].mean().cpu().numpy())

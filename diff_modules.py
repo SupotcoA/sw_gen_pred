@@ -65,7 +65,7 @@ class EulerSolver:
         return xt + v * dt  # dt < 0
     
     @torch.no_grad()
-    def generate(self, model, cond, shape, step=None):
+    def generate(self, model, cond, shape, mask, step=None):
         b = shape[:-1]
         xt = torch.randn(shape).to(model.device)
         step = step if step is not None else self.num_steps
@@ -76,6 +76,7 @@ class EulerSolver:
             v_pred = model.pred_v(xt, t, cond)
             dt = self.T[i-1] - self.T[i]
             xt = self.step(xt, v_pred, dt)
+            xt[mask] = torch.randn_like(xt[mask]) * self.T[i-1]
         return xt  # [b, d]
     
     @torch.no_grad()

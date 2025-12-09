@@ -131,6 +131,12 @@ def postprocess_data(data:np.ndarray, mask=None):
     # ACE_IMF_Bz
     data[...,key_idx] = isl1p(data[...,key_idx]*0.57)*3.66
     key_idx += 1
+    # ACE_Psw
+    data[...,key_idx] = np.exp((data[...,key_idx]*0.67)-0.1)*5
+    key_idx += 1
+    # ACE_Vsw
+    data[...,key_idx] = np.exp((data[...,key_idx]*0.238)+1.37)*110
+    key_idx += 1
     # OMNI_AE
     data[...,key_idx] = np.exp((data[...,key_idx]*1.15)-0.75)*220
     key_idx += 1
@@ -142,12 +148,6 @@ def postprocess_data(data:np.ndarray, mask=None):
     key_idx += 1
     # OMNI_SYMH
     data[...,key_idx] = (isl1p((data[...,key_idx]*0.525)+0.047)*22) - 13.2
-    key_idx += 1
-    # ACE_Psw
-    data[...,key_idx] = np.exp((data[...,key_idx]*0.67)-0.1)*5
-    key_idx += 1
-    # ACE_Vsw
-    data[...,key_idx] = np.exp((data[...,key_idx]*0.238)+1.37)*110
     key_idx += 1
     if mask is not None:
         data[mask] = np.nan
@@ -403,8 +403,10 @@ if __name__ == "__main__":
         mask_transformed = mask_reshaped.permute(0, 2, 1).reshape(S//seg_size, N*seg_size)
         return mask_transformed.contiguous() , x_transformed.contiguous()
     m, x=get_original_data("data/data") # [N,D]
-    x[m]=np.nan
-    print(np.nanstd(x,axis=0))
+    # x[m]=np.nan
+    # print(np.nanstd(x,axis=0))
+    N=m.shape[0]
+    print(m[:int(N/2)].sum(dim=0))
 
 
     # print(S.std(dim=0))

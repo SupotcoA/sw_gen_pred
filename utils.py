@@ -85,8 +85,8 @@ class Logger:
         t = np.arange(x0s.shape[1])
         t_res = np.arange(look_back_len, x0s.shape[1])
         for b in range(x0s.shape[0]):
-            plot_dim = [0, 2, 3, 6, 7]
-            names = ['Bx', 'Bz', 'AE', 'SYM-H', 'P']
+            plot_dim = [0, 2, 3, 5, 7]
+            names = ['Bx', 'Bz', 'P', 'AE', 'SYM-H']
             fig,axs = plt.subplots(ncols=1,nrows=len(plot_dim),
                                    sharex=True,
                                    figsize=(14, 4*len(plot_dim)),

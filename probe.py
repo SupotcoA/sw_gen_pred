@@ -2,17 +2,21 @@ import torch
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from probe_debug import *
 
 @torch.no_grad()
 def pipeline(model, logger, dataset):
     model.eval()
     torch.cuda.reset_peak_memory_stats()
     #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
-    diff_loss(model, dataset, logger, num_test_steps=50)
-    loss_vs_time(model, dataset, logger, num_test_steps=80)
+    #diff_loss(model, dataset, logger, num_test_steps=50)
+    #diff_loss_debug3(model, dataset, logger, num_test_steps=50)
+    diff_loss_debug5(model, dataset, logger, num_test_steps=50)
+    #loss_vs_time(model, dataset, logger, num_test_steps=80)
 
     peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
     print(f"Peak memory usage during probing: {peak_memory:.2f} GB")
+
 
 def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
     # how the loss would decrease as we increase the sequence length
@@ -53,6 +57,7 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
                 dpi=300, 
                 bbox_inches='tight')
     plt.close()
+
 
 def diff_loss(model, dataset, logger, num_test_steps=250):
     print("Evaluating gen mse vs diffusion steps...")
@@ -110,108 +115,6 @@ def diff_loss(model, dataset, logger, num_test_steps=250):
                 bbox_inches='tight')
     plt.close()
 
-def generate(model, cond, shape, step=None, x0=None, t_start=1.0):
-    b = shape[:-1]
-    xt = torch.randn(shape).to(model.device)
-    if x0 is not None:
-        xt = xt * t_start + x0 * (1 - t_start)
-    else:
-        assert t_start == 1.0, "x0 must be provided if t_start < 1.0"
-    step = step if step is not None else 32
-    step=max(1, int(step*t_start))
-    T = torch.linspace(0, t_start, step+1)
-    for i in reversed(range(1, step+1)):
-        t = torch.full(b, T[i], device=model.device)
-        v_pred = model.pred_v(xt, t, cond)
-        dt = T[i-1] - T[i]
-        xt = step(xt, v_pred, dt)
-    return xt
-
-def diff_loss_debug3(model, dataset, logger, num_test_steps=50):
-    print("Evaluating gen mse vs diffusion steps...")
-    acc_loss = []
-    diff_step = [1,4,8,16]
-    t_start_set = [1.0, 0.75, 0.5, 0.25]
-    step = 0
-    for mask,x0 in dataset:
-        step += 1
-        mask, x0 = model.preprocess(mask,x0)
-        mask = mask.to(model.device)
-        x0 = x0.to(model.device)
-        mask_f32 = mask[:,:-1].clone().to(torch.float32)
-        x=x0
-        b, s_h, d=x.shape
-        x_m = torch.cat([x[:,:-1],mask_f32],dim=-1)
-        
-        s=s_h-1
-        ls=[]
-        tar,tar_mask=x[:,1:], mask[:,1:]
-        tar_mask_ = model.postprocess(tar_mask).bool() # [b,s*4,4]
-        cond = model.get_cond(x_m).contiguous() #[b,s,c]
-        for diff_step in step:
-            ls2=[]
-            for t_start in  t_start_set:            
-                ntp = generate(model, cond, (b,s,d),step=diff_step,x0=x[:,1:],t_start=t_start) # [b,s,d]
-                temp = (ntp-tar).pow(2)
-                temp = model.postprocess(temp)
-                ls2.append(temp[tar_mask_].mean().cpu().numpy())
-            ls.append(ls2)
-        acc_loss.append(ls)
-        if step >= num_test_steps:
-            break
-    acc_loss=np.asarray(acc_loss) # [num_test_steps, num_diff_steps, num_t_start]
-    mean_loss = acc_loss.mean(axis=0) # [num_diff_steps, num_t_start]
-    std_loss = acc_loss.std(axis=0) / np.sqrt(acc_loss.shape[0]) # [num_diff_steps, num_t_start]
-
-    plt.figure(figsize=(10, 6))
-    #plt default color cycle
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-    
-    for i, (ds,c) in enumerate(zip(diff_step,colors)):
-        plt.errorbar(t_start_set, mean_loss[i], color=c+"80", ecolor=c+"30", yerr=std_loss[i], fmt='-o', capsize=5, label=f'{ds} steps')
-    
-    plt.yscale('log')
-    plt.xlabel('t_start')
-    plt.ylabel('MSE')
-    plt.grid(True, linestyle='--', alpha=0.7,which='both')
-    plt.legend()
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(logger.log_root, "mse_vs_t_start.png"), 
-                dpi=300, 
-                bbox_inches='tight')
-    plt.close()
-
-def diff_loss_debug2(model, dataset, logger, num_test_steps=50):
-    print("Evaluating gen mse vs diffusion steps...")
-    acc_loss = []
-    diff_step = [1,4,16,64]
-    step = 0
-    for mask,x0 in dataset:
-        step += 1
-        mask, x0 = model.preprocess(mask,x0)
-        mask = mask.to(model.device)
-        x0 = x0.to(model.device)
-        loss = model.gen(mask, x0, scope="debug",step=diff_step) #[num_diff_steps,]
-        acc_loss.append(loss)
-        if step >= num_test_steps:
-            break
-    acc_loss=np.asarray(acc_loss) # [num_test_steps, num_diff_steps]
-    mean_loss = acc_loss.mean(axis=0) # [num_diff_steps,]
-    std_loss = acc_loss.std(axis=0) / np.sqrt(acc_loss.shape[0]) # [num_diff_steps]
-
-    plt.figure(figsize=(10, 6))
-    # loss vs step, averaged over sequence length
-    plt.plot(diff_step, mean_loss, '-o', linewidth=3)
-    plt.yscale('log')
-    plt.xlabel('Diffusion Steps')
-    plt.ylabel('MSE')
-    plt.grid(True, linestyle='--', alpha=0.7,which='both')
-    plt.tight_layout()
-    plt.savefig(os.path.join(logger.log_root, "mse_vs_diff_steps.png"),
-                dpi=100,
-                bbox_inches='tight')
-    plt.close()
 
 def loss_vs_time(model, dataset, logger, num_test_steps=250):
     print("Evaluating loss vs diffusion time t...")
@@ -271,41 +174,7 @@ def loss_vs_time(model, dataset, logger, num_test_steps=250):
     
 
 
-def diff_loss_debug(model, dataset, logger, num_test_steps=250):
-    acc_loss = []
-    diff_step = [8,16,32,64,96]
-    step = 0
-    for mask,x0 in dataset:
-        step += 1
-        mask, x0 = model.preprocess(mask[:4],x0[:4])
-        mask = mask.to(model.device)
-        x0 = x0.to(model.device)
-        ntp = model.gen(mask, x0, step=diff_step) #[num_diff_steps,b,s,d]
-        acc_loss=ntp #[]
-        break
-    acc_loss=np.asarray(acc_loss) #[num_diff_steps,b,s,d]
-    
-    x0s = model.postprocess(torch.from_numpy(acc_loss[-1])).numpy() #[b,s*4,9]
-    tar = model.postprocess(x0[:,1:]).cpu().numpy() #[b,s*4,9]
-    t = np.arange(x0s.shape[1])
-    for b in range(x0s.shape[0]):
-        plot_dim = [0, 2, 3, 6, 7]
-        names = ['Bx', 'Bz', 'AE', 'SYM-H', 'P']
-        fig,axs = plt.subplots(ncols=1,nrows=len(plot_dim),
-                                sharex=True,
-                                figsize=(14, 4*len(plot_dim)),
-                                squeeze=True)
 
-        for dim,name, ax in zip(plot_dim,names,axs):
-            ax.plot(t, tar[b, :, dim], linewidth=5, color='#00BFFF')
-            ax.plot(t, x0s[b, :, dim], linewidth=5, color="#F80067")
-            ax.set_ylabel(name, fontsize=16)
-        # Add tight layout and save
-        plt.tight_layout()
-        plt.savefig(os.path.join(logger.log_root, f"single_step_gen{b}.png"), 
-                    dpi=100, 
-                    bbox_inches='tight')
-        plt.close()
 
 def storm_pred(model, dataset, logger, num_test_steps=250):
     pass

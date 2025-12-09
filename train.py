@@ -67,7 +67,12 @@ def test_gen(model, test_dataset, logger, num=10):
     #mask,x0s=mask[:8],x0s[:8]
     # randomly select 8 samples
     idx  = torch.from_numpy(np.random.choice(mask.shape[0], size=4, replace=False)).int()
-    mask, x0s = mask[idx], x0s[idx]
+    try:
+        mask, x0s = mask[idx], x0s[idx]
+    except IndexError:
+        print("WARNING tes_gen train.py")
+        idx = idx.to(torch.int64)
+        mask, x0s = mask[idx], x0s[idx]
     mask_,x0s_ = model.preprocess(mask,x0s)
     x0s_= x0s_.to(model.device)
     mask_=mask_.to(model.device)
