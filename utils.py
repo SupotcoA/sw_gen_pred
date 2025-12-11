@@ -193,3 +193,46 @@ def check_ae(model,x0, batch_size=9):
     # check if the decoder is working
     imgs=model.decode(x0[:batch_size], need_postprocess=False)
     return imgs
+
+@torch.no_grad()
+def estimate_mean_and_uncertainty(m_i, s_i, M):
+    """
+    根据分组统计量计算总体均值和不确定度
+    
+    参数:
+    m_i: numpy数组, 形状为[N, ...], 每组数据的均值
+    s_i: numpy数组, 形状为[N, ...], 每组数据的标准差(假设为ddof=1的无偏估计)
+    M: int, 每组数据的样本数
+    
+    返回:
+    mean_estimate: numpy数组, 形状为[...], 总体均值的估计
+    uncertainty: numpy数组, 形状为[...], 总体均值的标准误差
+    """
+    # 计算组数N
+    N = m_i.shape[0]
+    
+    # 1. 计算总体均值(各组均值的平均)
+    mean_estimate = np.mean(m_i, axis=0)
+    
+    # 2. 计算组间平方和
+    # diff = m_i - mean_estimate (广播)
+    diff = m_i - mean_estimate[np.newaxis, ...]
+    SS_between = M * np.sum(diff**2, axis=0)
+    
+    # 3. 计算组内平方和
+    # 假设s_i是ddof=1的无偏估计, 所以组内方差为s_i^2
+    # 组内离差平方和 = (M-1) * s_i^2
+    SS_within = np.sum((M - 1) * s_i**2, axis=0)
+    
+    # 4. 计算总平方和
+    SS_total = SS_between + SS_within
+    
+    # 5. 计算总体方差的估计
+    # 总自由度 = N*M - 1
+    total_dof = N * M - 1
+    variance_estimate = SS_total / total_dof
+    
+    # 6. 计算总体均值的标准误差(不确定度)
+    uncertainty = np.sqrt(variance_estimate / (N * M))
+    
+    return mean_estimate, uncertainty

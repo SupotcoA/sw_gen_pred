@@ -280,4 +280,3 @@ def diff_loss_debug(model, dataset, logger, num_test_steps=250):
                     dpi=100, 
                     bbox_inches='tight')
         plt.close()
-
