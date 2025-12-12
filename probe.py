@@ -9,16 +9,18 @@ from utils import estimate_mean_and_uncertainty
 @torch.no_grad()
 def pipeline(model, logger, dataset):
     model.eval()
-    torch.cuda.reset_peak_memory_stats()
+    
     #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
-    for i in range(3):
+    for i in range(1,3):
+        torch.cuda.reset_peak_memory_stats()
         diff_loss(model, dataset, logger, num_test_steps=50,metric_idx=i)
+        peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
+        print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
     #diff_loss_debug3(model, dataset, logger, num_test_steps=50)
     #diff_loss_debug5(model, dataset, logger, num_test_steps=50)
     #loss_vs_time(model, dataset, logger, num_test_steps=80)
 
-    peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
-    print(f"Peak memory usage during probing: {peak_memory:.2f} GB")
+    
 
 
 def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
@@ -74,7 +76,7 @@ def generate_Q_func(z, model, shape, Q_mask, step):
         xt[Q_mask] = torch.randn_like(xt[Q_mask]) * T[i-1]
     return xt
 
-def calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(0,2)):
+def calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(0,2), metric_idx=0):
     mask_f32 = mask[:,:-1].clone().to(torch.float32)
     x_m = torch.cat([x0[:,:-1],mask_f32],dim=-1)
     b, s_h, d=x0.shape
@@ -82,7 +84,7 @@ def calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(
     ls_m=[]
     ls_s=[]
     cond = model.get_cond(x_m).contiguous() #[b,s,c]
-    NUM_SAMPLES_Q_PER_LOOP=16
+    NUM_SAMPLES_Q_PER_LOOP=16 if metric_idx!=1 else 8
     for diff_step in diff_steps:      
         kwargs=dict(model=model, shape=(b*NUM_SAMPLES_Q_PER_LOOP,s,d), step=diff_step, Q_mask=mask[:,1:].repeat(NUM_SAMPLES_Q_PER_LOOP,1,1).contiguous())      
         res_m,res_s=metric(z=cond,
@@ -110,7 +112,7 @@ def diff_loss(model, dataset, logger, num_test_steps=50, metric_idx=0):
         mask, x0 = model.preprocess(mask,x0)
         mask = mask.to(model.device)
         x0 = x0.to(model.device)
-        res_m,res_s = calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(0,2)) #[num_diff_steps,s]
+        res_m,res_s = calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(0,2),metric_idx=metric_idx) #[num_diff_steps,s]
         ls_m.append(res_m) #[num_diff_steps,s]
         ls_s.append(res_s) #[num_diff_steps,s]
         if step >= num_test_steps:
