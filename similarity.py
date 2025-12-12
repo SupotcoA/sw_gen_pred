@@ -1,41 +1,41 @@
 import torch
 import math
 
-"""
-## Problem Statement
 
-We have two unknown conditional distributions \(P(x|z)\) and \(Q(x|z)\) for a scalar \(x\) given a high-dimensional condition \(z\). We can:
-- Sample \(z \sim p(z)\)
-- For each \(z\), draw **only one sample** from \(P(x|z)\) 
-- For each \(z\), draw **multiple samples** from \(Q(x|z)\)
-- Distributions are smooth in \(x\) but not necessarily in \(z\)
+# ## Problem Statement
 
-**Goal**: Estimate \(\mathbb{E}_z[d(P(\cdot|z), Q(\cdot|z))]\) for some divergence \(d\).
-A bias term independent of Q is acceptable, as the goal is to compare different Qs.
-"""
+# We have two unknown conditional distributions \(P(x|z)\) and \(Q(x|z)\) for a scalar \(x\) given a high-dimensional condition \(z\). We can:
+# - Sample \(z \sim p(z)\)
+# - For each \(z\), draw **only one sample** from \(P(x|z)\) 
+# - For each \(z\), draw **multiple samples** from \(Q(x|z)\)
+# - Distributions are smooth in \(x\) but not necessarily in \(z\)
 
-"""
-## Proposed Methods
+# **Goal**: Estimate \(\mathbb{E}_z[d(P(\cdot|z), Q(\cdot|z))]\) for some divergence \(d\).
+# A bias term independent of Q is acceptable, as the goal is to compare different Qs.
 
-### 1. Cross-Entropy with Gaussian KDE
 
-**Estimator** for each \(z_i\):
-1. Build KDE: \(\hat{q}_i(x) = \frac{1}{Mh}\sum_{j=1}^M \phi\left(\frac{x-y_{ij}}{h}\right)\) with Gaussian kernel \(\phi\)
-2. Compute: \(\hat{d}_{\text{CE}}(z_i) = -\log \hat{q}_i(x_i)\)
 
-**Average**: \(\hat{D}_{\text{CE}} = \frac{1}{N}\sum_i \hat{d}_{\text{CE}}(z_i)\)
 
-**What it estimates**:
-\[
-\mathbb{E}_z[\underbrace{\text{KL}(P\|Q)}_{\text{Target}} + H(P) + \underbrace{\text{KDE bias}}_{\text{Depends on }M,h}]
-\]
-"""
+# ## Proposed Methods
 
-"""
-The following functions implements the above method, with vectorized calculations.
+# ### 1. Cross-Entropy with Gaussian KDE
 
-The first cross_entropy_with_kde is the template.
-"""
+# **Estimator** for each \(z_i\):
+# 1. Build KDE: \(\hat{q}_i(x) = \frac{1}{Mh}\sum_{j=1}^M \phi\left(\frac{x-y_{ij}}{h}\right)\) with Gaussian kernel \(\phi\)
+# 2. Compute: \(\hat{d}_{\text{CE}}(z_i) = -\log \hat{q}_i(x_i)\)
+
+# **Average**: \(\hat{D}_{\text{CE}} = \frac{1}{N}\sum_i \hat{d}_{\text{CE}}(z_i)\)
+
+# **What it estimates**:
+# \[
+# \mathbb{E}_z[\underbrace{\text{KL}(P\|Q)}_{\text{Target}} + H(P) + \underbrace{\text{KDE bias}}_{\text{Depends on }M,h}]
+# \]
+
+
+# The following functions implements the above method, with vectorized calculations.
+
+# The first cross_entropy_with_kde is the template.
+
 
 
 @torch.no_grad()
@@ -166,26 +166,26 @@ def cross_entropy_with_kde(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
     return mean_val, std_val
 
 
-"""
-### 2. MMD with Characteristic Kernels
+# """
+# ### 2. MMD with Characteristic Kernels
 
-**Estimator** for each \(z_i\):
-\[
-\hat{d}_k(z_i) = k(x_i, x_i) + \frac{1}{M^2}\sum_{j,k} k(y_{ij}, y_{ik}) - \frac{2}{M}\sum_j k(x_i, y_{ij})
-\]
+# **Estimator** for each \(z_i\):
+# \[
+# \hat{d}_k(z_i) = k(x_i, x_i) + \frac{1}{M^2}\sum_{j,k} k(y_{ij}, y_{ik}) - \frac{2}{M}\sum_j k(x_i, y_{ij})
+# \]
 
-**Average**: \(\hat{D} = \frac{1}{N}\sum_i \hat{d}_k(z_i)\)
+# **Average**: \(\hat{D} = \frac{1}{N}\sum_i \hat{d}_k(z_i)\)
 
-**What it estimates**: 
-\[
-\mathbb{E}_z[\text{MMD}^2(P,Q) + \underbrace{\mathbb{E}_{x\sim P}[k(x,x)] - \mathbb{E}_{x,x'\sim P}[k(x,x')]}_{\text{Bias independent of }Q}]
-\]
+# **What it estimates**: 
+# \[
+# \mathbb{E}_z[\text{MMD}^2(P,Q) + \underbrace{\mathbb{E}_{x\sim P}[k(x,x)] - \mathbb{E}_{x,x'\sim P}[k(x,x')]}_{\text{Bias independent of }Q}]
+# \]
 
-**Kernel choices**:
-- **Gaussian RBF**: \(k(x,y)=\exp(-|x-y|^2/(2\sigma^2))\)
-- **Laplace**: \(k(x,y)=\exp(-|x-y|/\sigma)\)
-- **Bandwidth selection**: to be considered
-"""
+# **Kernel choices**:
+# - **Gaussian RBF**: \(k(x,y)=\exp(-|x-y|^2/(2\sigma^2))\)
+# - **Laplace**: \(k(x,y)=\exp(-|x-y|/\sigma)\)
+# - **Bandwidth selection**: to be considered
+# """
 
 @torch.no_grad()
 def mmd(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
@@ -279,41 +279,41 @@ def mmd(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
     return mean_val, std_val
 
 
-"""
-### 3. Probability Integral Transform (PIT) Approach
+# """
+# ### 3. Probability Integral Transform (PIT) Approach
 
-### Method
-For each condition \(z_i \sim p(z)\):
-1. Draw one sample \(x_i \sim P(x|z_i)\)
-2. Draw \(M\) samples \(\{y_{ij}\}_{j=1}^M \sim Q(x|z_i)\)
-3. Compute percentile: \(\hat{u}_i = \frac{\text{rank}(x_i \text{ among } \{x_i, y_{i1},..., y_{iM}\})}{M+1}\)
+# ### Method
+# For each condition \(z_i \sim p(z)\):
+# 1. Draw one sample \(x_i \sim P(x|z_i)\)
+# 2. Draw \(M\) samples \(\{y_{ij}\}_{j=1}^M \sim Q(x|z_i)\)
+# 3. Compute percentile: \(\hat{u}_i = \frac{\text{rank}(x_i \text{ among } \{x_i, y_{i1},..., y_{iM}\})}{M+1}\)
 
-Collect \(\{\hat{u}_i\}_{i=1}^N\) and measure deviation from Uniform(0,1) using **Cramér-von Mises statistic**:
-\[
-D_{\text{CvM}} = \frac{1}{12N} + \sum_{i=1}^N \left(\hat{u}_{(i)} - \frac{2i-1}{2N}\right)^2
-\]
-where \(\hat{u}_{(i)}\) are sorted percentiles.
+# Collect \(\{\hat{u}_i\}_{i=1}^N\) and measure deviation from Uniform(0,1) using **Cramér-von Mises statistic**:
+# \[
+# D_{\text{CvM}} = \frac{1}{12N} + \sum_{i=1}^N \left(\hat{u}_{(i)} - \frac{2i-1}{2N}\right)^2
+# \]
+# where \(\hat{u}_{(i)}\) are sorted percentiles.
 
-### What It Estimates
-Measures **average calibration error** over \(z\):
-- If \(P = Q\) conditionally for all \(z\), \(\{\hat{u}_i\} \sim \text{Uniform}(0,1)\)
-- Large \(D_{\text{CvM}}\) indicates miscalibration
+# ### What It Estimates
+# Measures **average calibration error** over \(z\):
+# - If \(P = Q\) conditionally for all \(z\), \(\{\hat{u}_i\} \sim \text{Uniform}(0,1)\)
+# - Large \(D_{\text{CvM}}\) indicates miscalibration
 
-### Advantages
-1. **No tuning parameters** (except \(M\), no bandwidth selection)
-2. **Interpretable**: Directly measures probability coverage
-3. **Scale-invariant**: Works under any monotonic transformation of \(x\)
-4. **Detects systematic biases**: Skewed percentiles reveal over/underestimation
+# ### Advantages
+# 1. **No tuning parameters** (except \(M\), no bandwidth selection)
+# 2. **Interpretable**: Directly measures probability coverage
+# 3. **Scale-invariant**: Works under any monotonic transformation of \(x\)
+# 4. **Detects systematic biases**: Skewed percentiles reveal over/underestimation
 
-### Shortcomings
-1. **Marginal (not conditional) calibration**: Tests average over \(z\), may miss \(z\)-dependent errors
-2. **May miss higher-moment differences**: Two distributions with same average CDF but different conditional shapes could appear equal
-3. **One-sided**: Optimizes for calibration, not necessarily all distributional aspects
+# ### Shortcomings
+# 1. **Marginal (not conditional) calibration**: Tests average over \(z\), may miss \(z\)-dependent errors
+# 2. **May miss higher-moment differences**: Two distributions with same average CDF but different conditional shapes could appear equal
+# 3. **One-sided**: Optimizes for calibration, not necessarily all distributional aspects
 
-### Best Use Case
-Comparing \(Q_1\) vs \(Q_2\) using same \(\{z_i, x_i\}\):  
-Smaller \(D_{\text{CvM}}\) indicates better average calibration relative to \(P\).
-"""
+# ### Best Use Case
+# Comparing \(Q_1\) vs \(Q_2\) using same \(\{z_i, x_i\}\):  
+# Smaller \(D_{\text{CvM}}\) indicates better average calibration relative to \(P\).
+# """
 
 @torch.no_grad()
 def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
