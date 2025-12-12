@@ -12,7 +12,7 @@ def pipeline(model, logger, dataset):
     torch.cuda.reset_peak_memory_stats()
     #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
     for i in range(3):
-        diff_loss(model, dataset, logger, num_test_steps=150,metric_idx=i)
+        diff_loss(model, dataset, logger, num_test_steps=50,metric_idx=i)
     #diff_loss_debug3(model, dataset, logger, num_test_steps=50)
     #diff_loss_debug5(model, dataset, logger, num_test_steps=50)
     #loss_vs_time(model, dataset, logger, num_test_steps=80)
@@ -82,7 +82,7 @@ def calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(
     ls_m=[]
     ls_s=[]
     cond = model.get_cond(x_m).contiguous() #[b,s,c]
-    NUM_SAMPLES_Q_PER_LOOP=4
+    NUM_SAMPLES_Q_PER_LOOP=16
     for diff_step in diff_steps:      
         kwargs=dict(model=model, shape=(b*NUM_SAMPLES_Q_PER_LOOP,s,d), step=diff_step, Q_mask=mask[:,1:].repeat(NUM_SAMPLES_Q_PER_LOOP,1,1))      
         res_m,res_s=metric(z=cond, x0=x0[:,1:], mask=mask[:,1:], Q_func=generate_Q_func, reduce_dim=reduce_dim, NUM_SAMPLES_Q_PER_LOOP=NUM_SAMPLES_Q_PER_LOOP,**kwargs)
@@ -92,7 +92,7 @@ def calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(
 
 
 
-def diff_loss(model, dataset, logger, num_test_steps=250, metric_idx=0):
+def diff_loss(model, dataset, logger, num_test_steps=50, metric_idx=0):
     print("Evaluating generated distribution similarity metric vs diffusion steps...")
     metric = [cross_entropy_with_kde,mmd,pit_cvm][metric_idx]
     ls_m = []
@@ -111,7 +111,7 @@ def diff_loss(model, dataset, logger, num_test_steps=250, metric_idx=0):
             break
     b,s,d=x0.shape
     s-=1
-    ls_m,ls_s=estimate_mean_and_uncertainty(m_i=np.array(ls_m),m_s=np.array(ls_s),M=b*d)
+    ls_m,ls_s=estimate_mean_and_uncertainty(m_i=np.array(ls_m),s_i=np.array(ls_s),M=b*d)
     #ls_m [num_diff_steps,s]
 
     # visualize & save at logger.log_root
