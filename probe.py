@@ -84,8 +84,14 @@ def calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(
     cond = model.get_cond(x_m).contiguous() #[b,s,c]
     NUM_SAMPLES_Q_PER_LOOP=16
     for diff_step in diff_steps:      
-        kwargs=dict(model=model, shape=(b*NUM_SAMPLES_Q_PER_LOOP,s,d), step=diff_step, Q_mask=mask[:,1:].repeat(NUM_SAMPLES_Q_PER_LOOP,1,1))      
-        res_m,res_s=metric(z=cond, x0=x0[:,1:], mask=mask[:,1:], Q_func=generate_Q_func, reduce_dim=reduce_dim, NUM_SAMPLES_Q_PER_LOOP=NUM_SAMPLES_Q_PER_LOOP,**kwargs)
+        kwargs=dict(model=model, shape=(b*NUM_SAMPLES_Q_PER_LOOP,s,d), step=diff_step, Q_mask=mask[:,1:].repeat(NUM_SAMPLES_Q_PER_LOOP,1,1).contiguous())      
+        res_m,res_s=metric(z=cond,
+                           x0=x0[:,1:].contiguous(),
+                           mask=mask[:,1:].contiguous(),
+                           Q_func=generate_Q_func,
+                           reduce_dim=reduce_dim,
+                           NUM_SAMPLES_Q_PER_LOOP=NUM_SAMPLES_Q_PER_LOOP,
+                           **kwargs)
         ls_m.append(res_m.cpu().numpy()) # [s,]
         ls_s.append(res_s.cpu().numpy())
     return np.array(ls_m), np.array(ls_s)
@@ -128,7 +134,7 @@ def diff_loss(model, dataset, logger, num_test_steps=50, metric_idx=0):
         #     smoothed_mean = np.convolve(padded_mean, np.ones(window_size)/window_size, mode='valid')
         #     plt.plot(np.arange(len(smoothed_mean)), smoothed_mean, color=c, linewidth=3)
     #plt.hlines(y=0.044439464807510376, xmin=0, xmax=len(mean_loss[0])-1, colors='gray', linestyles='dashed')
-    plt.yscale('log')
+    #plt.yscale('log')
     plt.xlabel('Sequence Length')
     metric_name=["Negative Log Likelihood", "Maximum Mean Discrepancy", "Probability Integral Transform"][metric_idx]
     metric_name_s=["NLL","MMD","PIT"][metric_idx]
@@ -142,14 +148,14 @@ def diff_loss(model, dataset, logger, num_test_steps=50, metric_idx=0):
                 bbox_inches='tight')
     plt.close()
 
-    logger.log_arr(ls_m, f"{metric_name_s}_vs_diffsetp_seq_mean")
-    logger.log_arr(ls_s, f"{metric_name_s}_vs_diffsetp_seq_std")
+    logger.log_arr(ls_m, f"{metric_name_s}_vs_diffstep_seq_mean")
+    logger.log_arr(ls_s, f"{metric_name_s}_vs_diffstep_seq_std")
 
     ls_reduced = ls_m.mean(axis=1)
     plt.figure(figsize=(10, 6))
     # loss vs step, averaged over sequence length
     plt.plot(diff_steps, ls_reduced, '-o', linewidth=3)
-    plt.yscale('log')
+    #plt.yscale('log')
     plt.xlabel('Diffusion Steps')
     plt.ylabel(metric_name)
     plt.grid(True, linestyle='--', alpha=0.7,which='both')
