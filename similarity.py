@@ -39,7 +39,7 @@ import math
 
 
 @torch.no_grad()
-def cross_entropy_with_kde(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
+def cross_entropy_with_kde(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kwargs):
     """
     Estimates the similarity (Negative Log Likelihood) between P(x|z) and Q(x|z)
     element-wise across dimension s, aggregating over the batch b and dim.
@@ -66,7 +66,6 @@ def cross_entropy_with_kde(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
     # z.repeat(M, 1, 1) results in shape [M*b, s, cond_dim] 
     # with ordering [b_0, b_1, ..., b_0, b_1, ...]
     # 使用分块处理减少显存占用
-    NUM_SAMPLES_Q_PER_LOOP = 4
     NUM_LOOPS = NUM_SAMPLES_Q // NUM_SAMPLES_Q_PER_LOOP
     
     # 用于存储所有块的采样结果
@@ -188,7 +187,7 @@ def cross_entropy_with_kde(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
 # """
 
 @torch.no_grad()
-def mmd(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
+def mmd(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kwargs):
     """
     Vectorized MMD^2 estimator per-element (treating each scalar in last dim independently).
 
@@ -199,7 +198,6 @@ def mmd(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
     # Hyperparameters (kept consistent with KDE function)
     NUM_SAMPLES_Q = 64
     MIN_STD = 1e-2
-    NUM_SAMPLES_Q_PER_LOOP = 4
     NUM_LOOPS = NUM_SAMPLES_Q // NUM_SAMPLES_Q_PER_LOOP
 
     b, s, dim = x0.shape
@@ -316,7 +314,7 @@ def mmd(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
 # """
 
 @torch.no_grad()
-def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
+def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kwargs):
     """
     Probability Integral Transform (PIT) using Cramér-von Mises statistic.
 
@@ -333,7 +331,6 @@ def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), **kwargs):
     """
     # Hyperparameters (consistent with other functions)
     NUM_SAMPLES_Q = 64
-    NUM_SAMPLES_Q_PER_LOOP = 4
     NUM_LOOPS = NUM_SAMPLES_Q // NUM_SAMPLES_Q_PER_LOOP
 
     b, s, dim = x0.shape

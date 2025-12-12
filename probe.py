@@ -61,17 +61,17 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
                 bbox_inches='tight')
     plt.close()
 
-def generate_Q_func(z, model, shape, mask, step):
-    b = shape[:-1]
-    xt = torch.randn(shape).to(model.device)
+def generate_Q_func(z, model, shape, Q_mask, step):
+    b,s,d = shape
+    xt = torch.randn((b,s,d)).to(model.device)
     step=max(1, step)
     T = torch.linspace(0, 1, step+1)
     for i in reversed(range(1, step+1)):
-        t = torch.full(b, T[i], device=model.device)
+        t = torch.full((b,s), T[i], device=model.device)
         v_pred = model.pred_v(xt, t, z)
         dt = T[i-1] - T[i]
         xt = flow_step(xt, v_pred, dt)
-        xt[mask] = torch.randn_like(xt[mask]) * T[i-1]
+        xt[Q_mask] = torch.randn_like(xt[Q_mask]) * T[i-1]
     return xt
 
 def calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(0,2)):
@@ -82,9 +82,10 @@ def calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(
     ls_m=[]
     ls_s=[]
     cond = model.get_cond(x_m).contiguous() #[b,s,c]
+    NUM_SAMPLES_Q_PER_LOOP=4
     for diff_step in diff_steps:      
-        kwargs=dict(model=model, shape=(b,s,d), mask=mask, step=diff_step)      
-        res_m,res_s=metric(z=cond, x0=x0, mask=mask, Q_func=generate_Q_func, reduce_dim=reduce_dim, **kwargs)
+        kwargs=dict(model=model, shape=(b*NUM_SAMPLES_Q_PER_LOOP,s,d), step=diff_step, Q_mask=mask[:,1:].repeat(NUM_SAMPLES_Q_PER_LOOP,1,1))      
+        res_m,res_s=metric(z=cond, x0=x0[:,1:], mask=mask[:,1:], Q_func=generate_Q_func, reduce_dim=reduce_dim, NUM_SAMPLES_Q_PER_LOOP=NUM_SAMPLES_Q_PER_LOOP,**kwargs)
         ls_m.append(res_m.cpu().numpy()) # [s,]
         ls_s.append(res_s.cpu().numpy())
     return np.array(ls_m), np.array(ls_s)
