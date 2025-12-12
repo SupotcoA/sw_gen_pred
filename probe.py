@@ -84,7 +84,7 @@ def calculate_similarity_metric(metric, model, mask, x0, diff_steps,reduce_dim=(
     ls_m=[]
     ls_s=[]
     cond = model.get_cond(x_m).contiguous() #[b,s,c]
-    NUM_SAMPLES_Q_PER_LOOP=16 if metric_idx!=1 else 8
+    NUM_SAMPLES_Q_PER_LOOP=16 
     for diff_step in diff_steps:      
         kwargs=dict(model=model, shape=(b*NUM_SAMPLES_Q_PER_LOOP,s,d), step=diff_step, Q_mask=mask[:,1:].repeat(NUM_SAMPLES_Q_PER_LOOP,1,1).contiguous())      
         res_m,res_s=metric(z=cond,

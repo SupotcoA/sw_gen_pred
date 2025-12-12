@@ -229,12 +229,30 @@ def mmd(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kwargs
     bw_sq = (bandwidth ** 2).unsqueeze(0)  # [1, N] for broadcasting
 
     # 3. Compute pairwise kernel among samples: term2 = (1/M^2) sum_{i,j} k(y_i, y_j)
-    # Compute pairwise squared differences per task using broadcasting
-    # diff shape -> [M, M, N]
-    diff_pairs = samples_flat.unsqueeze(0) - samples_flat.unsqueeze(1)
-    dist2_pairs = diff_pairs.pow(2)  # scalar tasks -> squared differences
-    K_pairs = torch.exp(-dist2_pairs / (2.0 * bw_sq))  # [M, M, N]
-    term2_flat = K_pairs.sum(dim=(0, 1)) / float(M * M)  # [N]
+
+    # Compute it in an M-loop to avoid allocating [M, M, N] (huge!). Use in-place ops.
+    # samples_flat: [M, N], bw_sq: [1, N]
+    term2_flat = torch.zeros_like(x0_flat)  # [N]
+    den = 2.0 * bw_sq  # [1, N]
+
+    # Loop over i, compute k(y_i, y_j) for all j producing [M, N] temporaries (much smaller)
+    for i in range(M):
+        # diff: [M, N] = y_j - y_i
+        diff = samples_flat - samples_flat[i : i + 1]  # new tensor [M, N]
+        # square, scale and exponentiate in-place to produce kernel entries for this i
+        diff.mul_(diff)           # diff = (y_j - y_i)^2
+        diff.div_(den)            # diff = dist2 / (2 * bw_sq)
+        diff.neg_().exp_()        # diff = exp(-dist2/(2*bw_sq))
+        term2_flat.add_(diff.sum(dim=0))  # accumulate sum_j k(y_i, y_j) for each task
+
+    term2_flat = term2_flat / float(M * M)  # [N]
+
+    # # Compute pairwise squared differences per task using broadcasting
+    # # diff shape -> [M, M, N]
+    # diff_pairs = samples_flat.unsqueeze(0) - samples_flat.unsqueeze(1)
+    # dist2_pairs = diff_pairs.pow(2)  # scalar tasks -> squared differences
+    # K_pairs = torch.exp(-dist2_pairs / (2.0 * bw_sq))  # [M, M, N]
+    # term2_flat = K_pairs.sum(dim=(0, 1)) / float(M * M)  # [N]
 
     # 4. Compute cross term: term3 = (2/M) sum_j k(x0, y_j)
     diff_x = samples_flat - x0_flat.unsqueeze(0)  # [M, N]
