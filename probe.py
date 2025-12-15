@@ -11,14 +11,15 @@ def pipeline(model, logger, dataset):
     model.eval()
     
     #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
-    for i in range(1,3):
-        torch.cuda.reset_peak_memory_stats()
-        diff_loss(model, dataset, logger, num_test_steps=50,metric_idx=i)
-        peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
-        print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
+    # for i in range(1,3):
+    #     torch.cuda.reset_peak_memory_stats()
+    #     diff_loss(model, dataset, logger, num_test_steps=50,metric_idx=i)
+    #     peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
+    #     print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
     #diff_loss_debug3(model, dataset, logger, num_test_steps=50)
     #diff_loss_debug5(model, dataset, logger, num_test_steps=50)
     #loss_vs_time(model, dataset, logger, num_test_steps=80)
+    pit(model,dataset,logger,50)
 
     
 
@@ -63,7 +64,7 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
                 bbox_inches='tight')
     plt.close()
 
-def generate_Q_func(z, model, shape, Q_mask, step):
+def generate_Q_func(z, model, shape, Q_mask, step, **kwargs):
     b,s,d = shape
     xt = torch.randn((b,s,d)).to(model.device)
     step=max(1, step)
@@ -223,6 +224,125 @@ def loss_vs_time(model, dataset, logger, num_test_steps=250):
                 dpi=100, transparent=False, 
                 bbox_inches='tight')
     plt.close()
+
+def calculate_u(model, mask, x0, diff_step):
+    mask_f32 = mask[:,:-1].clone().to(torch.float32)
+    x_m = torch.cat([x0[:,:-1],mask_f32],dim=-1)
+    b, s_h, d=x0.shape
+    s=s_h-1
+    cond = model.get_cond(x_m).contiguous() #[b,s,c]
+    NUM_SAMPLES_Q_PER_LOOP=16      
+    kwargs=dict(model=model, shape=(b*NUM_SAMPLES_Q_PER_LOOP,s,d), step=diff_step, Q_mask=mask[:,1:].repeat(NUM_SAMPLES_Q_PER_LOOP,1,1).contiguous())      
+    u=pit_cvm(z=cond,
+                x0=x0[:,1:].contiguous(),
+                mask=mask[:,1:].contiguous(),
+                Q_func=generate_Q_func,
+                NUM_SAMPLES_Q_PER_LOOP=NUM_SAMPLES_Q_PER_LOOP,
+                return_u=True,
+                **kwargs) # [M+1,d]
+    u=u.cpu().numpy()
+    return u
+    
+def pit(model, dataset, logger, num_test_steps=50):
+    print("Evaluating generated distribution similarity metric vs diffusion steps...")
+    res = 0
+    diff_step = 32
+    step = 0
+    for mask,x0 in dataset:
+        step += 1
+        mask, x0 = model.preprocess(mask,x0)
+        mask = mask.to(model.device)
+        x0 = x0.to(model.device)
+        res += calculate_u(model, mask, x0, diff_step) #[M+1,d]
+        if step >= num_test_steps:
+            break
+    b,s,d=x0.shape
+    s-=1
+    logger.log_arr(res,"cdist")
+
+    res_reduced = res.reshape(res.shape[0], d, 4).sum(axis=2)
+    names = "ACE_IMF_Bx ACE_IMF_By ACE_IMF_Bz ACE_Psw ACE_Vsw OMNI_AE OMNI_ASYMH OMNI_PC OMNI_SYMH".split()
+    fig,axes=plot_pq_comparison(res_reduced,names,res_reduced.shape[0]-1)
+    fig.savefig(os.path.join(logger.log_root, f"cdist.png"), 
+                dpi=120, transparent=False, 
+                bbox_inches='tight')
+    plt.close()
+
+def plot_pq_comparison(counts, names, M):
+    """
+    绘制P和Q分布比较图
+    
+    参数:
+    counts: numpy数组, 形状为[M+1, d], 每个特征上u的计数
+    names: 列表, 长度为d的特征名称
+    M: int, Q样本的数量
+    """
+    d = counts.shape[1]
+    assert d == 9, "特征维度应为9"
+    assert len(names) == 9, "特征名称数量应为9"
+    
+    # 创建3x3的子图
+    fig, axes = plt.subplots(3, 3, figsize=(15, 12))
+    fig.subplots_adjust(hspace=0.3, wspace=0.3)
+    
+    # 横坐标：归一化的排序位置 [0, 1]
+    x_norm = np.arange(M + 1) / M
+    
+    for i, ax in enumerate(axes.flat):
+        if i >= d:
+            break
+            
+        # 获取当前特征的计数并计算频率
+        feature_counts = counts[:, i]
+        total = feature_counts.sum()
+        frequencies = feature_counts / total  # 归一化频率
+        
+        # 计算累积分布
+        cumulative = np.cumsum(frequencies)
+        
+        # 绘制直方图（左y轴）
+        bars = ax.bar(x_norm, frequencies, width=1/M, alpha=0.7, 
+                     color='#00BFFF')
+        
+        ax.set_xlabel('Normalized Rank', fontsize=10) if i in [6,7,8] else None
+        ax.set_ylabel('Frequency', color='#00AAE3', fontsize=10) if i in [0,3,6] else None
+        ax.tick_params(axis='y', labelcolor="#00AAE3") 
+        ax.set_ylim(0, frequencies.max() * 1.2)
+        ax.set_xlim(0.0, 1.0)
+        ax.set_title(names[i], fontsize=10, fontweight='bold')
+        
+        # 绘制网格（背景）
+        ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+        
+        # 创建右y轴用于累积分布
+        ax2 = ax.twinx()
+        
+        # 绘制累积分布曲线
+        ax2.plot(x_norm, cumulative,color= '#F80067C0', linewidth=2, label='Empirical CDF')
+        
+        # 绘制P=Q的理论参考线（对角线）
+        ax2.plot([0, 1], [0, 1], color='#F8006750', linestyle="dashed", linewidth=1.5, label='Reference')
+        
+        # 设置右y轴标签和范围
+        ax2.set_ylabel('Cumulative Probability', color="#E70060", fontsize=10) if i in [2,5,8] else None
+        ax2.set_ylim(-0.0, 1.0)
+        ax2.tick_params(axis='y', labelcolor='#E70060') if i in [2,5,8] else ax2.set_yticklabels([]) 
+        
+        # 添加图例
+        if i==0:
+            lines1, labels1 = ax.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax2.legend(lines2, labels2, loc='upper left', fontsize=8)
+    
+    # 添加总标题
+    plt.suptitle(f'Comparison of P and Q Distributions (M={M})', 
+                 fontsize=14, fontweight='bold', y=1.02)
+    
+    # 调整布局
+    plt.tight_layout()
+    
+    return fig, axes
+
     
 
 

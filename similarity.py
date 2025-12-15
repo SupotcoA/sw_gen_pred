@@ -332,7 +332,7 @@ def mmd(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kwargs
 # """
 
 @torch.no_grad()
-def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kwargs):
+def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4, return_u=False, **kwargs):
     """
     Probability Integral Transform (PIT) using Cramér-von Mises statistic.
 
@@ -370,8 +370,12 @@ def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kw
     # rank = 1 + number of y_j <= x0  -> percentile = rank / (M+1)
     x0_expanded = x0.unsqueeze(0)  # [1, b, s, dim]
     le_counts = (samples_q <= x0_expanded).sum(dim=0).to(dtype=torch.float32)  # [b, s, dim]
-    ranks = le_counts + 1.0  # rank in {1,...,M+1}
+    ranks:torch.Tensor = le_counts + 1.0  # rank in {1,...,M+1}
     u = ranks / float(M + 1)  # empirical percentile in (0,1]
+
+    # if user only wants the raw u's for visualization / downstream analysis
+    if return_u:
+        return count_occurrences(le_counts.int(),mask,M) #[M+1,d]
 
     # 3. Prepare grouping for reduction specified by reduce_dim
     shape = list(u.shape)  # [b, s, dim]
@@ -399,7 +403,11 @@ def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kw
     mean_out = torch.zeros(K, device=device, dtype=dtype)
     std_out = torch.zeros(K, device=device, dtype=dtype)
 
-    # 4. For each kept-slice (column), compute CvM statistic over valid u's
+    # Discrete CvM: compare empirical CDF at the L=M+1 support points
+    L = M + 1
+    # support values v_j = j / L (use double for numeric stability)
+    v_vals = (torch.arange(1, L + 1, device=device, dtype=torch.float64) / float(L)).unsqueeze(0)  # [1, L]
+
     for k in range(K):
         vm = valid_groups[:, k]
         if vm.sum() == 0:
@@ -407,26 +415,26 @@ def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kw
             std_out[k] = 0.0
             continue
 
-        u_valid = u_groups[vm, k].to(dtype=torch.float64)  # use double for sorting / numerics
+        u_valid = u_groups[vm, k].to(dtype=torch.float64)  # use double for counting/sorting
         N = u_valid.numel()
 
-        # sort percentiles
-        u_sorted, _ = torch.sort(u_valid)
+        # empirical CDF at each support value: F_n(v_j) = (1/N) * sum_i 1_{u_i <= v_j}
+        counts = (u_valid.unsqueeze(1) <= v_vals).sum(dim=0).to(dtype=torch.float64)  # [L]
+        F_n = counts / float(N)  # [L]
 
-        # expected uniform order statistics: (2i-1)/(2N), i=1..N
-        idx = torch.arange(1, N + 1, device=device, dtype=torch.float64)
-        expected = (2.0 * idx - 1.0) / (2.0 * float(N))
+        # theoretical CDF F0(v_j) = j / L which equals v_vals.squeeze()
+        F0 = v_vals.squeeze(0)  # [L]
 
-        # per-element contributions
-        contributions = (u_sorted - expected).pow(2)  # length N
+        # per-support contributions
+        contributions = (F_n - F0).pow(2)  # [L]
 
-        # CvM statistic
-        D_cvm = (1.0 / (12.0 * float(N))) + contributions.sum()
+        # CvM statistic as mean over support (1/L) * sum_j contributions_j
+        D_cvm = contributions.mean()  # already divided by L
 
-        # store mean (the statistic) and std (std of contributions)
         mean_out[k] = D_cvm.to(dtype)
-        if N > 1:
-            var_c = contributions.var(unbiased=True)
+        if L > 1:
+            # std of per-support contributions (use unbiased estimator)
+            var_c = contributions.to(dtype).var(unbiased=True)
             std_out[k] = torch.sqrt(var_c).to(dtype)
         else:
             std_out[k] = 0.0
@@ -443,3 +451,46 @@ def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kw
 
     return mean_val, std_val
 
+def count_occurrences(x, mask, M):
+    """
+    统计每个d维度上0~M在[b,s]维度出现的次数（忽略mask标记的位置）
+    
+    参数:
+        x: 形状为[b, s, d]的整数张量，值为0~M
+        mask: 形状为[b, s, d]的布尔张量，True表示被mask的位置
+    
+    返回:
+        形状为[M+1, d]的张量，统计每个d维度上0~M出现的次数
+    """
+    b, s, d = x.shape
+    
+    # 将mask扩展为与x相同的形状，用于后续掩码
+    # mask的形状已经是[b, s, d]，直接使用
+    
+    x_indices = x 
+    
+    # 将mask的位置设置为-1，这样在统计时会被忽略
+    x_indices = x_indices.masked_fill(mask, -1)  # 形状: [b, s, d]
+    
+    # 为每个d维度单独统计
+    # 使用bincount统计每个d维度上的出现次数
+    all_counts = []
+    
+    for i in range(d):
+        # 获取第i个d维度的数据
+        d_slice = x_indices[:, :, i]  # 形状: [b, s]
+        
+        # 展平为1D张量
+        flat_slice = d_slice.flatten()  # 形状: [b*s]
+        
+        # 过滤掉-1（被mask的位置）
+        valid_indices = flat_slice[flat_slice != -1]  # 形状: [n_valid]
+        
+        # 使用bincount统计，minlength=65确保输出长度为65
+        counts = torch.bincount(valid_indices.long(), minlength=M+1)  # 形状: [M+1]
+        all_counts.append(counts)
+    
+    # 将结果堆叠为[M+1, d]的形状
+    result = torch.stack(all_counts, dim=1)  # 形状: [M+1, d]
+    
+    return result
