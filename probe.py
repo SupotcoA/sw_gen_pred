@@ -260,7 +260,7 @@ def pit(model, dataset, logger, num_test_steps=50):
     s-=1
     logger.log_arr(res,"cdist")
 
-    res_reduced = res.reshape(res.shape[0], d, 4).sum(axis=2)
+    res_reduced = res.reshape(res.shape[0], d//4, 4).sum(axis=2)
     names = "ACE_IMF_Bx ACE_IMF_By ACE_IMF_Bz ACE_Psw ACE_Vsw OMNI_AE OMNI_ASYMH OMNI_PC OMNI_SYMH".split()
     fig,axes=plot_pq_comparison(res_reduced,names,res_reduced.shape[0]-1)
     fig.savefig(os.path.join(logger.log_root, f"cdist.png"), 
