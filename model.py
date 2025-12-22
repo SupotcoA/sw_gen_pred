@@ -20,6 +20,7 @@ class ARModel(nn.Module):
         super().__init__()
         self.device = device if device else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.train_config = train_config
+        self.mlp_pred = train_config.get('mlp_pred',"v")
         self.seg_size = train_config.get('seg_size', 1)
         self.num_fm_per_gd = train_config['num_fm_per_gd']
         self.max_seq_len = train_config['max_seq_len']
@@ -66,7 +67,10 @@ class ARModel(nn.Module):
         t_ = t.view(-1).contiguous()
         cond_ = cond.view([-1,cond.shape[-1]]).contiguous()
         
-        v_pred = self.mlp(x_, t_, cond_).contiguous()
+        v_pred = self.mlp(x_, t_, cond_).contiguous() 
+        if self.mlp_pred == "x":
+            # in this case the above v_pred is actually x0 pred
+            v_pred = (x_ - v_pred) / t_.clamp_min(1e-4).unsqueeze(-1)
 
         return v_pred.view(x.shape).contiguous()
     

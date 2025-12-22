@@ -196,7 +196,7 @@ def mmd(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4,**kwargs
     Returns (mean_mmd, std_mmd) aggregated across dimensions given by reduce_dim.
     """
     # Hyperparameters (kept consistent with KDE function)
-    NUM_SAMPLES_Q = 64
+    NUM_SAMPLES_Q = 48
     MIN_STD = 1e-2
     NUM_LOOPS = NUM_SAMPLES_Q // NUM_SAMPLES_Q_PER_LOOP
 
@@ -348,7 +348,7 @@ def pit_cvm(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_PER_LOOP=4, ret
         std_cvm (torch.Tensor): Std of per-element contributions to the CvM sum per slice
     """
     # Hyperparameters (consistent with other functions)
-    NUM_SAMPLES_Q = 64
+    NUM_SAMPLES_Q = 48
     NUM_LOOPS = NUM_SAMPLES_Q // NUM_SAMPLES_Q_PER_LOOP
 
     b, s, dim = x0.shape

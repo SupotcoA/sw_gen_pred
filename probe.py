@@ -11,15 +11,15 @@ def pipeline(model, logger, dataset):
     model.eval()
     
     #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
-    # for i in range(1,3):
-    #     torch.cuda.reset_peak_memory_stats()
-    #     diff_loss(model, dataset, logger, num_test_steps=50,metric_idx=i)
-    #     peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
-    #     print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
+    for i in range(2):
+        torch.cuda.reset_peak_memory_stats()
+        diff_loss(model, dataset, logger, num_test_steps=[100,50,50][i],metric_idx=i)
+        peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
+        print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
     #diff_loss_debug3(model, dataset, logger, num_test_steps=50)
     #diff_loss_debug5(model, dataset, logger, num_test_steps=50)
-    #loss_vs_time(model, dataset, logger, num_test_steps=80)
-    pit(model,dataset,logger,50)
+    loss_vs_time(model, dataset, logger, num_test_steps=80)
+    #pit(model,dataset,logger,50)
 
     
 
@@ -171,7 +171,7 @@ def diff_loss(model, dataset, logger, num_test_steps=50, metric_idx=0):
 
 def loss_vs_time(model, dataset, logger, num_test_steps=250):
     print("Evaluating loss vs diffusion time t...")
-    ts=torch.linspace(0,1,10)
+    ts=torch.linspace(0.01,0.99,10)
     acc_loss = []
     acc_loss_x0=[]
     step = 0
@@ -207,6 +207,8 @@ def loss_vs_time(model, dataset, logger, num_test_steps=250):
     mean_loss_x0 = acc_loss_x0.mean(axis=0) # [num_time_points]
     std_loss_x0 = acc_loss_x0.std(axis=0) / np.sqrt(acc_loss_x0.shape[0]) # [num_time_points]
 
+    logger.log_arr(mean_loss,"mean_loss_v_vs_t")
+    logger.log_arr(mean_loss_x0,"mean_loss_x_vs_t")
     # visualize & save at logger.log_root
     fig,ax=plt.subplots(figsize=(10, 6))
     ax.errorbar(ts.numpy(), mean_loss, yerr=std_loss, fmt='-o',color="#00BFFF", ecolor='#00BFFF40', capsize=5)

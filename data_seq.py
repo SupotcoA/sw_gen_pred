@@ -6,16 +6,24 @@ from torch.utils.data import Dataset, DataLoader
 
 def load_mat_file(root):
     data=dict()
+    keys=['ACE_IMF_Bx', 'ACE_IMF_By', 'ACE_IMF_Bz', 'ACE_Psw', 'ACE_Vsw',
+          'OMNI_AE', 'OMNI_ASYMH', 'OMNI_PC', 'OMNI_SYMH'
+          ]
     files:list[str] = os.listdir(root)
     for fp in files:
         if fp.endswith("2000s.mat"):
             with h5py.File(os.path.join(root,fp),"r") as f:
-                for key in f.keys():
+                for key in keys():
                     data[key]=np.asarray(f[key][0])
     for fp in files:
         if fp.endswith("2010s.mat"):
             with h5py.File(os.path.join(root,fp),"r") as f:
-                for key in f.keys():
+                for key in keys():
+                    data[key]=np.concatenate([data[key],np.asarray(f[key][0])])
+    for fp in files:
+        if fp.endswith("2020_2023.mat"):
+            with h5py.File(os.path.join(root,fp),"r") as f:
+                for key in keys():
                     data[key]=np.concatenate([data[key],np.asarray(f[key][0])])
     return data
 
@@ -105,6 +113,7 @@ def preprocess_data(data:dict):
     mask_array = [torch.from_numpy(data[key][0]).bool() for key in keys]
     mask_array = torch.column_stack(mask_array)
     print("All data cat shape:", data_array.shape)
+    print("All data years:", data_array.shape[0]/60/24/365.25)
     print("All mask cat shape:", mask_array.shape)
     return mask_array, data_array
 
