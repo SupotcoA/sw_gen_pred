@@ -11,11 +11,11 @@ def pipeline(model, logger, dataset):
     model.eval()
     
     #loss_against_sequence_length(model, dataset, logger, num_test_steps=100)
-    # for i in range(2):
-    #     torch.cuda.reset_peak_memory_stats()
-    #     diff_loss(model, dataset, logger, num_test_steps=[100,50,50][i],metric_idx=i)
-    #     peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
-    #     print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
+    for i in range(2):
+        torch.cuda.reset_peak_memory_stats()
+        diff_loss(model, dataset, logger, num_test_steps=[100,50,50][i],metric_idx=i)
+        peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
+        print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
     loss_vs_time(model, dataset, logger, num_test_steps=40)
     #pit(model,dataset,logger,50)
 

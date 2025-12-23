@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 from utils import Logger, check_ae
@@ -14,10 +15,10 @@ def train(model,
           logger: Logger):
     if train_config['train_steps']<=0:
         model.eval()
-        test(model, logger, train_dataset, num_test_steps=50,is_eval=True)
+        test(model, logger, train_dataset, num_test_steps=100,is_eval=True)
         test(model, logger, val_dataset, num_test_steps=1000,is_eval=True)
         test(model, logger, test_dataset, num_test_steps=1000)
-        #pipeline(model, logger, val_dataset.randomized_loader)
+        pipeline(model, logger, val_dataset.randomized_loader)
         #test_gen(model,val_dataset,logger,num=10)
         #final_eval_generation(model, train_config, logger, verbose=train_config['train_steps']==0)
         return
@@ -51,7 +52,9 @@ def train(model,
         if logger.step == train_config['train_steps']:
             # load the best checkpoint for test set evaluation
             if train_config['save']:
-                sd = torch.load(train_config['pretrained'], map_location=model.device)
+                name=f"mar_best_{logger.model_name}"
+                fp=os.path.join(logger.log_root,f"{name}.pth")
+                sd = torch.load(fp, map_location=model.device)
                 model.load_state_dict(sd, strict=True)
             model.eval()
             test(model, logger, test_dataset, num_test_steps=1000)

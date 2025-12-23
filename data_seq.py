@@ -22,12 +22,12 @@ def load_mat_file(root):
                 for key in keys:
                     if key in f.keys():
                         data[key]=np.concatenate([data[key],np.asarray(f[key][0])])
-    # for fp in files:
-    #     if fp.endswith("2020_2023.mat"):
-    #         with h5py.File(os.path.join(root,fp),"r") as f:
-    #             for key in keys:
-    #                 if key in f.keys():
-    #                     data[key]=np.concatenate([data[key],np.asarray(f[key][0])])
+    for fp in files:
+        if fp.endswith("2020_2023.mat"):
+            with h5py.File(os.path.join(root,fp),"r") as f:
+                for key in keys:
+                    if key in f.keys():
+                        data[key]=np.concatenate([data[key],np.asarray(f[key][0])])
     return data
 
 def sigmoid(x):
