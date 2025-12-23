@@ -118,6 +118,12 @@ def preprocess_data(data:dict):
     print("All data cat shape:", data_array.shape)
     print("All data years:", data_array.shape[0]/60/24/365.25)
     print("All mask cat shape:", mask_array.shape)
+    temp_data=data_array.numpy()
+    temp_mask=mask_array.numpy().astype(bool)
+    temp_data[temp_mask]=np.nan
+    print(np.nanmean(temp_data,axis=0))
+    print(np.nanstd(temp_data,axis=0))
+    
     return mask_array, data_array
 
 def isigmoid(x):
