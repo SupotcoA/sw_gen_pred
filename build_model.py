@@ -80,9 +80,15 @@ def build_model(logger,
     else:
         print("running on cpu!")
     # TODO: use AdamW
-    optim = torch.optim.Adam(model.parameters(),
-                             lr=train_config['base_learning_rate'],
-                             betas=train_config['betas'])
+    if weight_decay:=train_config.get("weight_decay",None):
+        optim = torch.optim.AdamW(model.parameters(),
+                                lr=train_config['base_learning_rate'],
+                                betas=train_config['betas'],
+                                weight_decay=weight_decay)
+    else:
+        optim = torch.optim.Adam(model.parameters(),
+                                lr=train_config['base_learning_rate'],
+                                betas=train_config['betas'])
     if train_config['use_lr_scheduler']:
         lr_scheduler = CosineSchedulerWithWarmup(optimizer=optim,
                                                  max_epochs=train_config['train_steps'],

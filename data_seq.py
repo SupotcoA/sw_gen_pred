@@ -22,12 +22,12 @@ def load_mat_file(root):
                 for key in keys:
                     if key in f.keys():
                         data[key]=np.concatenate([data[key],np.asarray(f[key][0])])
-    for fp in files:
-        if fp.endswith("2020_2023.mat"):
-            with h5py.File(os.path.join(root,fp),"r") as f:
-                for key in keys:
-                    if key in f.keys():
-                        data[key]=np.concatenate([data[key],np.asarray(f[key][0])])
+    # for fp in files:
+    #     if fp.endswith("2020_2023.mat"):
+    #         with h5py.File(os.path.join(root,fp),"r") as f:
+    #             for key in keys:
+    #                 if key in f.keys():
+    #                     data[key]=np.concatenate([data[key],np.asarray(f[key][0])])
     return data
 
 def sigmoid(x):
@@ -415,10 +415,12 @@ if __name__ == "__main__":
         mask_transformed = mask_reshaped.permute(0, 2, 1).reshape(S//seg_size, N*seg_size)
         return mask_transformed.contiguous() , x_transformed.contiguous()
     m, x=get_original_data("data/data") # [N,D]
-    # x[m]=np.nan
-    # print(np.nanstd(x,axis=0))
     N=m.shape[0]
-    print(m[:int(N/2)].sum(dim=0))
+    x[m]=np.nan
+    print(np.nanstd(x[:int(N*5/6)],axis=0))
+    print(np.nanstd(x[int(N*5/6):],axis=0))
+    # N=m.shape[0]
+    # print(m[:int(N/2)].sum(dim=0))
 
 
     # print(S.std(dim=0))

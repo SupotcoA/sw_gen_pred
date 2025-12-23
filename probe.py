@@ -10,21 +10,19 @@ from utils import estimate_mean_and_uncertainty
 def pipeline(model, logger, dataset):
     model.eval()
     
-    #loss_against_sequence_length(model, dataset, logger, num_test_steps=1000)
-    for i in range(2):
-        torch.cuda.reset_peak_memory_stats()
-        diff_loss(model, dataset, logger, num_test_steps=[100,50,50][i],metric_idx=i)
-        peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
-        print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
-    #diff_loss_debug3(model, dataset, logger, num_test_steps=50)
-    #diff_loss_debug5(model, dataset, logger, num_test_steps=50)
-    loss_vs_time(model, dataset, logger, num_test_steps=80)
+    #loss_against_sequence_length(model, dataset, logger, num_test_steps=100)
+    # for i in range(2):
+    #     torch.cuda.reset_peak_memory_stats()
+    #     diff_loss(model, dataset, logger, num_test_steps=[100,50,50][i],metric_idx=i)
+    #     peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
+    #     print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
+    loss_vs_time(model, dataset, logger, num_test_steps=40)
     #pit(model,dataset,logger,50)
 
     
 
 
-def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
+def loss_against_sequence_length(model, dataset, logger, num_test_steps=100):
     # how the loss would decrease as we increase the sequence length
     print("Evaluating loss vs sequence length...")
     acc_loss = []
@@ -40,6 +38,7 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=1000):
             break
     acc_loss=np.asarray(acc_loss)
     mean_loss = acc_loss.mean(axis=0)
+    logger.log_arr(mean_loss,"mean_loss_vs_seq_len")
     std_loss = acc_loss.std(axis=0) / np.sqrt(acc_loss.shape[0])
     # visualize & save at logger.log_root
     plt.figure(figsize=(10, 6))
