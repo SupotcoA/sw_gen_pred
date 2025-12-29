@@ -15,10 +15,10 @@ def train(model,
           logger: Logger):
     if train_config['train_steps']<=0:
         model.eval()
-        test(model, logger, train_dataset, num_test_steps=50,is_eval=True)
-        test(model, logger, val_dataset, num_test_steps=200,is_eval=True)
+        # test(model, logger, train_dataset, num_test_steps=50,is_eval=True)
+        # test(model, logger, val_dataset, num_test_steps=50,is_eval=True)
         #test(model, logger, test_dataset, num_test_steps=200)
-        #pipeline(model, logger, val_dataset.randomized_loader)
+        pipeline(model, logger, val_dataset.randomized_loader)
         #test_gen(model,val_dataset,logger,num=10)
         #final_eval_generation(model, train_config, logger, verbose=train_config['train_steps']==0)
         return
@@ -42,11 +42,11 @@ def train(model,
             lr_scheduler.step()
         if logger.step % train_config['eval_every_n_steps'] == 0:
             model.eval()
-            val_loss=test(model, logger, val_dataset, num_test_steps=1000, is_eval=True)
+            val_loss=test(model, logger, val_dataset.randomized_loader, num_test_steps=32, is_eval=True)
             if val_loss < current_best_val_loss:
                 current_best_val_loss = val_loss
                 if train_config['save']:
-                    logger.log_net(model.cpu(),f"mar_best_{logger.model_name}")
+                    logger.log_net(model.cpu(),f"mar_best_ckpt{logger.step}_{logger.model_name}")
                 if model.device.type == 'cuda':
                     model.cuda()
         if logger.step == train_config['train_steps']:
@@ -83,7 +83,7 @@ def test_gen(model, test_dataset, logger, num=10):
     x0s_= x0s_.to(model.device)
     mask_=mask_.to(model.device)
     print("generating")
-    steps=[2,8,32]
+    steps=[32,]
     for step in steps:
         out=[]
         for _ in range(num):

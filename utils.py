@@ -87,17 +87,17 @@ class Logger:
         t = np.arange(x0s.shape[1])
         t_res = np.arange(look_back_len, x0s.shape[1])
         for b in range(x0s.shape[0]):
-            plot_dim = [0, 2, 3, 5, 7]
-            names = ['Bx', 'Bz', 'P', 'AE', 'SYM-H']
+            plot_dim = [0, 2, 3, 5]
+            names = ['Bx', 'Bz', 'AE', 'SYM-H']
             fig,axs = plt.subplots(ncols=1,nrows=len(plot_dim),
                                    sharex=True,
                                    figsize=(14, 4*len(plot_dim)),
                                    squeeze=True)
 
             for dim,name, ax in zip(plot_dim,names,axs):
-                ax.plot(t, x0s[b, :, dim], linewidth=5, color='#00BFFF')
+                ax.plot(t, x0s[b, :, dim], linewidth=5, color="#009CD0")
                 for res in out:
-                    ax.plot(t_res, res[b, look_back_len:, dim], linewidth=5, color="#F80067",alpha=min(3/len(out),0.99))
+                    ax.plot(t_res, res[b, look_back_len:, dim], linewidth=5, color="#FF006A",alpha=min(3/len(out),0.99))
                 ax.set_ylabel(name, fontsize=16)
             # Add tight layout and save
             plt.tight_layout()

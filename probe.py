@@ -9,14 +9,13 @@ from utils import estimate_mean_and_uncertainty
 @torch.no_grad()
 def pipeline(model, logger, dataset):
     model.eval()
-    
-    #loss_against_sequence_length(model, dataset, logger, num_test_steps=100)
+    torch.cuda.reset_peak_memory_stats()
+    loss_against_sequence_length(model, dataset, logger, num_test_steps=40)
     for i in range(2):
-        torch.cuda.reset_peak_memory_stats()
-        diff_loss(model, dataset, logger, num_test_steps=[100,50,50][i],metric_idx=i)
-        peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
-        print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
+        diff_loss(model, dataset, logger, num_test_steps=[40,40,40][i],metric_idx=i)
     loss_vs_time(model, dataset, logger, num_test_steps=40)
+    peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
+    print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
     #pit(model,dataset,logger,50)
 
     
@@ -170,7 +169,7 @@ def diff_loss(model, dataset, logger, num_test_steps=50, metric_idx=0):
 
 def loss_vs_time(model, dataset, logger, num_test_steps=250):
     print("Evaluating loss vs diffusion time t...")
-    ts=torch.linspace(0.01,0.99,10)
+    ts=torch.linspace(0.05,0.99,10)
     acc_loss = []
     acc_loss_x0=[]
     step = 0

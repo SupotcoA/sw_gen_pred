@@ -107,7 +107,9 @@ def preprocess_data(data:dict):
     arr[mask] = 0.0
     data[key] = (mask, arr.astype(np.float32))
 
-    keys = data.keys()
+    keys=['ACE_IMF_Bx', 'ACE_IMF_By', 'ACE_IMF_Bz', 
+          'OMNI_AE', 'OMNI_ASYMH', 'OMNI_PC', 'OMNI_SYMH', 'ACE_Psw', 'ACE_Vsw',
+          ]
     print("Using data:",*keys)
     
     data_array = [torch.from_numpy(data[key][1]).float() for key in keys]
@@ -118,11 +120,11 @@ def preprocess_data(data:dict):
     print("All data cat shape:", data_array.shape)
     print("All data years:", data_array.shape[0]/60/24/365.25)
     print("All mask cat shape:", mask_array.shape)
-    temp_data=data_array.numpy()
-    temp_mask=mask_array.numpy().astype(bool)
-    temp_data[temp_mask]=np.nan
-    print(np.nanmean(temp_data,axis=0))
-    print(np.nanstd(temp_data,axis=0))
+    # temp_data=data_array.clone().numpy()
+    # temp_mask=mask_array.clone().numpy().astype(bool)
+    # temp_data[temp_mask]=np.nan
+    # print(np.nanmean(temp_data,axis=0))
+    # print(np.nanstd(temp_data,axis=0))
     
     return mask_array, data_array
 
@@ -149,12 +151,6 @@ def postprocess_data(data:np.ndarray, mask=None):
     # ACE_IMF_Bz
     data[...,key_idx] = isl1p(data[...,key_idx]*0.57)*3.66
     key_idx += 1
-    # ACE_Psw
-    data[...,key_idx] = np.exp((data[...,key_idx]*0.67)-0.1)*5
-    key_idx += 1
-    # ACE_Vsw
-    data[...,key_idx] = np.exp((data[...,key_idx]*0.238)+1.37)*110
-    key_idx += 1
     # OMNI_AE
     data[...,key_idx] = np.exp((data[...,key_idx]*1.15)-0.75)*220
     key_idx += 1
@@ -166,6 +162,12 @@ def postprocess_data(data:np.ndarray, mask=None):
     key_idx += 1
     # OMNI_SYMH
     data[...,key_idx] = (isl1p((data[...,key_idx]*0.525)+0.047)*22) - 13.2
+    key_idx += 1
+    # ACE_Psw
+    data[...,key_idx] = np.exp((data[...,key_idx]*0.67)-0.1)*5
+    key_idx += 1
+    # ACE_Vsw
+    data[...,key_idx] = np.exp((data[...,key_idx]*0.238)+1.37)*110
     key_idx += 1
     if mask is not None:
         data[mask] = np.nan

@@ -56,7 +56,7 @@ def cross_entropy_with_kde(z, x0, mask, Q_func, reduce_dim=(0,2), NUM_SAMPLES_Q_
         std_nll (torch.Tensor): Std of NLL per (s,) [s,] (depending on reduce_dim)
     """
     # --- Hyperparameters ---
-    NUM_SAMPLES_Q = 64
+    NUM_SAMPLES_Q = 48
     MIN_STD = 1e-2 
     
     b, s, dim = x0.shape
