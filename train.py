@@ -46,7 +46,7 @@ def train(model,
             if val_loss < current_best_val_loss:
                 current_best_val_loss = val_loss
                 if train_config['save']:
-                    logger.log_net(model.cpu(),f"mar_best_ckpt{logger.step}_{logger.model_name}")
+                    logger.log_net(model.cpu(),f"mar_best_{logger.model_name}")
                 if model.device.type == 'cuda':
                     model.cuda()
         if logger.step == train_config['train_steps']:

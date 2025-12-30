@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import os
+import time
 import matplotlib.pyplot as plt
 from probe_debug import *
 from similarity import *
@@ -9,13 +10,20 @@ from utils import estimate_mean_and_uncertainty
 @torch.no_grad()
 def pipeline(model, logger, dataset):
     model.eval()
+    t0= time.time()
     torch.cuda.reset_peak_memory_stats()
     loss_against_sequence_length(model, dataset, logger, num_test_steps=40)
     for i in range(2):
         diff_loss(model, dataset, logger, num_test_steps=[40,40,40][i],metric_idx=i)
     loss_vs_time(model, dataset, logger, num_test_steps=40)
     peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
-    print(f"{i} Peak memory usage during probing: {peak_memory:.2f} GB")
+    info=f"{i} Peak memory usage during probing: {peak_memory:.2f} GB"
+    logger.log_text(info,"train_log")
+    print(info)
+    dt= time.time()-t0
+    info=f"Probing time: {dt/60:.1f} min"
+    logger.log_text(info,"train_log")
+    print(info)
     #pit(model,dataset,logger,50)
 
     
