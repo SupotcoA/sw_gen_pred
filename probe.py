@@ -14,7 +14,7 @@ def pipeline(model, logger, dataset):
     torch.cuda.reset_peak_memory_stats()
     loss_against_sequence_length(model, dataset, logger, num_test_steps=200)
     for i in range(2):
-        diff_loss(model, dataset, logger, num_test_steps=[4,4,4][i],metric_idx=i)
+        diff_loss(model, dataset, logger, num_test_steps=[10,10,10][i],metric_idx=i)
     loss_vs_time(model, dataset, logger, num_test_steps=40)
     peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
     info=f"{i} Peak memory usage during probing: {peak_memory:.2f} GB"
