@@ -58,9 +58,9 @@ def train(model,
                 model.load_state_dict(sd, strict=True)
             model.eval()
             test(model, logger, test_dataset, num_test_steps=1000)
-            test_gen(model,test_dataset,logger,num=10)
             pipeline(model, logger, val_dataset.randomized_loader)
             logger.train_end()
+            test_gen(model,test_dataset,logger,num=10)
             break
     
     # if train_config['save']:

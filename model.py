@@ -88,7 +88,7 @@ class ARModel(nn.Module):
             for i in range(scope):
                 x_temp = x_m[:,-self.max_seq_len:]
                 cond = self.get_cond(x_temp)[:, -1, :]
-                ntp = self.solver.generate(self, cond, (b,d), step=step) # [b,d]
+                ntp = self.solver.generate(self, cond, (b,d), mask=mask[:, -1, :],step=step) # [b,d]
                 ntp = ntp.view([b,1,d]).contiguous()
                 ntp = torch.cat((ntp,torch.zeros_like(ntp)), dim=-1) # [b,1,d*2]
                 x_m = torch.cat((x_m,ntp), dim=1)
