@@ -17,7 +17,24 @@ def pipeline(model, logger, dataset):
         diff_loss(model, dataset, logger, num_test_steps=[10,10,10][i],metric_idx=i)
     loss_vs_time(model, dataset, logger, num_test_steps=40)
     peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
-    info=f"{i} Peak memory usage during probing: {peak_memory:.2f} GB"
+    info=f"Peak memory usage during probing: {peak_memory:.2f} GB"
+    logger.log_text(info,"train_log")
+    print(info)
+    dt= time.time()-t0
+    info=f"Probing time: {dt/60:.1f} min"
+    logger.log_text(info,"train_log")
+    print(info)
+    #pit(model,dataset,logger,50)
+
+@torch.no_grad()
+def pipeline2(model, logger, dataset):
+    model.eval()
+    t0= time.time()
+    torch.cuda.reset_peak_memory_stats()
+    loss_against_sequence_length(model, dataset, logger, num_test_steps=200)
+    
+    peak_memory=torch.cuda.max_memory_allocated() / (1024 ** 3)
+    info=f"Peak memory usage during probing: {peak_memory:.2f} GB"
     logger.log_text(info,"train_log")
     print(info)
     dt= time.time()-t0

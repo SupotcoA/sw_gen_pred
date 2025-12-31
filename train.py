@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from utils import Logger, check_ae
 from data_seq import postprocess_data
-from probe import pipeline
+from probe import pipeline,pipeline2
 
 def train(model,
           optim,
@@ -15,6 +15,9 @@ def train(model,
           logger: Logger):
     if train_config['train_steps']<=0:
         model.eval()
+        if train_config['train_steps']==-42:
+            pipeline2(model, logger, val_dataset.randomized_loader)
+            return
         # test(model, logger, train_dataset, num_test_steps=50,is_eval=True)
         # test(model, logger, val_dataset, num_test_steps=50,is_eval=True)
         #test(model, logger, test_dataset, num_test_steps=200)

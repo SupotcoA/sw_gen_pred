@@ -270,16 +270,16 @@ if __name__ == "__main__":
     # find the expected loss when always copy the last value (not token)
     seg_size=4
     m, x = preprocess(m,x,seg_size=seg_size) # [S//s,D*s]
-    # loss, valid = baseline_copy_mse_loss(x, m, seg_size)
-    # print(loss.mean()) #0.0384
-    # print(loss[3:7].mean()) # 0.0152
-    # print(loss)
+    loss, valid = baseline_copy_mse_loss(x, m, seg_size)
+    print(loss.mean()) #0.0384
+    print(loss[3:7].mean()) # 0.0152
+    print(loss)
     # # [0.0639, 0.0686, 0.1325, 0.0231, 0.0202, 0.0154, 0.0023, 0.0169, 0.0028]
 
-    loss, valid = baseline_copy_mse_loss2(x, m, seg_size,last=2)
-    print(loss.mean()) #0.0412
-    print(loss[3:7].mean()) # 0.0170
-    print(loss)
+    # loss, valid = baseline_copy_mse_loss2(x, m, seg_size,last=2)
+    # print(loss.mean()) #0.0412
+    # print(loss[3:7].mean()) # 0.0170
+    # print(loss)
     # [0.0688, 0.0735, 0.1417, 0.0255, 0.0209, 0.0189, 0.0025, 0.0160, 0.0028]
 
     # loss, valid = baseline_copy_mse_loss2(x, m, seg_size,last=4)

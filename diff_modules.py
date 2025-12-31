@@ -27,8 +27,8 @@ class FMDiffuser:
     
     def calc_loss(self, v_pred, v_gt, mask, t=None, per_token=False):
         if per_token:
-            temp = postprocess((v_pred - v_gt).pow(2))[:,:,3:7]
-            mask = postprocess(mask)[:,:,3:7].bool()
+            temp = postprocess((v_pred - v_gt).pow(2))
+            mask = postprocess(mask).bool()
             b, s, d = temp.shape
             temp = temp.contiguous().view(b,per_token,s//per_token,d)
             temp_mask = mask.contiguous().view(b,per_token,s//per_token,d)

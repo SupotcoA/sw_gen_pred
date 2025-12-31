@@ -81,10 +81,34 @@ def build_model(logger,
         print("running on cpu!")
     # TODO: use AdamW
     if weight_decay:=train_config.get("weight_decay",None):
-        optim = torch.optim.AdamW(model.parameters(),
+        decay_params = []
+        no_decay_params = []
+        
+        for name, param in model.named_parameters():
+            if not param.requires_grad:
+                continue
+            
+            # 检查是否为需要跳过的参数类型
+            if ((not ("transformer" in name)) or
+                "proj" in name or
+                len(param.shape) == 1 or  # 归一化层参数
+                name.endswith(".bias")):  
+                no_decay_params.append(param)
+            else:
+                decay_params.append(param)
+        
+        group=[
+            {"params": decay_params, "weight_decay": weight_decay},
+            {"params": no_decay_params, "weight_decay": 0.0}
+        ]
+        num_decay_params = calculate_num_params(group[0]["params"])
+        num_no_decay_params = calculate_num_params(group[1]["params"])
+        info = f"decay params: {num_decay_params:,}, no decay params: {num_no_decay_params:,}"
+        print(info)
+        logger.log_text(info, "config", newline=True)
+        optim = torch.optim.AdamW(group,
                                 lr=train_config['base_learning_rate'],
-                                betas=train_config['betas'],
-                                weight_decay=weight_decay)
+                                betas=train_config['betas'])
     else:
         optim = torch.optim.Adam(model.parameters(),
                                 lr=train_config['base_learning_rate'],
