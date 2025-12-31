@@ -56,8 +56,8 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=100):
         mask, x0 = model.preprocess(mask,x0)
         mask = mask.to(model.device)
         x0 = x0.to(model.device)
-        loss = model.train_step(mask, x0, per_token_loss=True) # [s,]
-        acc_loss.append(loss.cpu().numpy())
+        loss_ind,loss_sw = model.train_step(mask, x0, per_token_loss=True) # [s,]
+        acc_loss.append([loss_ind.cpu().numpy(),loss_sw.cpu().numpy()])
         if step >= num_test_steps:
             break
     acc_loss=np.asarray(acc_loss)
@@ -67,12 +67,13 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=100):
     # visualize & save at logger.log_root
     plt.figure(figsize=(10, 6))
     
-    plt.errorbar(np.arange(len(mean_loss)), mean_loss, yerr=std_loss, fmt='-o', ecolor='#00BFFF80', capsize=5)
+    plt.errorbar(np.arange(len(mean_loss[0])), mean_loss[0], yerr=std_loss[0], fmt='-o', ecolor='#00BFFF80', capsize=5)
+    plt.errorbar(np.arange(len(mean_loss[1])), mean_loss[1], yerr=std_loss[1], fmt='-o', ecolor="#FB00FF80", capsize=5)
     # also plot a smoothed version
     window_size = 15
-    if len(mean_loss) >= window_size:
+    if len(mean_loss[0]) >= window_size:
         # pad the sequence to avoid losing points at the edges
-        padded_mean = np.pad(mean_loss, (window_size//2, window_size//2), mode='edge')
+        padded_mean = np.pad(mean_loss[0], (window_size//2, window_size//2), mode='edge')
         smoothed_mean = np.convolve(padded_mean, np.ones(window_size)/window_size, mode='valid')
         plt.plot(np.arange(len(smoothed_mean)), smoothed_mean, color="#F80067", label='Smoothed', linewidth=2)
     plt.xlabel('Sequence Length')
@@ -86,6 +87,7 @@ def loss_against_sequence_length(model, dataset, logger, num_test_steps=100):
                 dpi=300, 
                 bbox_inches='tight')
     plt.close()
+
 
 def generate_Q_func(z, model, shape, Q_mask, step, **kwargs):
     b,s,d = shape

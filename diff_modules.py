@@ -27,15 +27,19 @@ class FMDiffuser:
     
     def calc_loss(self, v_pred, v_gt, mask, t=None, per_token=False):
         if per_token:
-            temp = postprocess((v_pred - v_gt).pow(2))
-            mask = postprocess(mask).bool()
+            # per_token = num_fm_per_gd
+            temp = (v_pred - v_gt).pow(2)
             b, s, d = temp.shape
             temp = temp.contiguous().view(b,per_token,s//per_token,d)
             temp_mask = mask.contiguous().view(b,per_token,s//per_token,d)
             temp[temp_mask] = 0
-            count = (~temp_mask).sum(dim=(0,1,3), keepdim=False)
-            temp = temp.sum(dim=(0,1,3), keepdim=False) / count
-            return temp.view(-1,4).mean(dim=-1)
+            indices_count = (~temp_mask[:,:,:,12:28]).sum(dim=(0,1,3), keepdim=False)
+            solar_wind_count = (~temp_mask).sum(dim=(0,1,3), keepdim=False) - indices_count
+            indices_temp = temp[:,:,:,12:28].sum(dim=(0,1,3), keepdim=False)
+            solar_wind_temp = temp.sum(dim=(0,1,3), keepdim=False) - indices_temp
+            indices_temp = indices_temp / torch.clamp(indices_count, min=1.0) #[64]
+            solar_wind_temp = solar_wind_temp / torch.clamp(solar_wind_count, min=1.0) # [64]
+            return [indices_temp,solar_wind_temp]
         return (v_pred - v_gt)[~mask].pow(2).mean()
 
 @torch.no_grad()
