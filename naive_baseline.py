@@ -250,6 +250,7 @@ def baseline_copy_mean_mse_loss(reshaped_data, mask, s):
 if __name__ == "__main__":
     #test_baseline_mse_loss_reshaped()
     from data_seq import get_original_data
+    import numpy as np
     @torch.no_grad()
     def preprocess(mask, x, seg_size=4):
         S, N = x.shape
@@ -267,6 +268,12 @@ if __name__ == "__main__":
     N=x.shape[0]
     s,e=int(N*2/3),int(N*5/6)
     m,x=m[s:e],x[s:e]
+    m,x=m.numpy(),x.numpy()
+    x[m]=np.nan
+    x_diff=np.diff(x,axis=0)
+    u=np.nanmean(x_diff**2,axis=0)
+    print(u)
+    raise
     # find the expected loss when always copy the last value (not token)
     seg_size=4
     m, x = preprocess(m,x,seg_size=seg_size) # [S//s,D*s]
